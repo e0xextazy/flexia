@@ -1,8 +1,6 @@
 from dataclasses import dataclass, field, asdict
 import json
 
-from attr import fields_dict
-
 
 @dataclass
 class Arguments():
