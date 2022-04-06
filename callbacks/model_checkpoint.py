@@ -3,8 +3,8 @@ import warnings
 import shutil
 from dataclasses import dataclass, field
 import os
-import numpy as np
 from .callback import Callback
+import numpy as np
 
 
 
@@ -14,7 +14,7 @@ class ModelCheckpoint(Callback):
     overwriting: bool = field(default=False)
     best_value: float = field(default="default")
     filename_format: str = field(default="best_checkpoint.pth")
-    canditates: int = field(default=1)
+    candidates: int = field(default="all")
     
     def __post_init__(self):        
         if not os.path.exists(self.directory):
@@ -28,7 +28,7 @@ class ModelCheckpoint(Callback):
                 possible_checkpoints = os.listdir(self.directory)
                 if len(possible_checkpoints) > 0:
                     if self.overwriting:
-                        self._remove_files_from_directory(self.directory)
+                        self.__remove_files_from_directory(self.directory)
                     else:
                         string_possible_checkpoints = "', '".join(possible_checkpoints)
                         if not self.ignore_warnings:
@@ -36,7 +36,31 @@ class ModelCheckpoint(Callback):
                                           "Be carefully with setting 'filename_format' to avoid overwritting other files.")
             else:
                 raise NotADirectoryError(f"'{self.directory}' is not directory.")
-                        
+        
+        
+        if isinstance(self.candidates, str):
+            if self.candidates != "all":
+                raise ValueError(f"'candidates' can be a string, but only with 1 value: 'all', but given '{self.candidates}'")
+        elif self.candidates < 0:
+            if not self.ignore_warnings:
+                print(f"Parameter 'candidates' is lower than 0, so it will be setted to 0 (no saving checkpoints during training).")
+            self.candidates = 0
+            
+        elif self.candidates == 0:
+            if not self.ignore_warnings:
+                print(f"Parameter 'candidates' was setted to '0', which means that no saving checkpoints during training.")
+        
+        if self.filename_format.count(".") > 1:
+            raise ValueError(f"'filename_format' must not has '.' in filename, but given '{self.filename_format}'.")
+        
+        if self.is_filename_format_unique(self.filename_format):
+            if not self.ignore_warnings:
+                warnings.warn(f"Seems that 'filename_format' is not unique, maybe will be overwrited some useful checkpoints during training.")
+            
+            if self.candidates > 1:
+                if not self.ignore_warnings:
+                    warnings.warn(f"When 'filename_format' is not unique, number of candidates does not affect anything.")
+        
         
         if self.best_value == "default":
             self._set_default_best_value()
@@ -44,13 +68,17 @@ class ModelCheckpoint(Callback):
             if not self.ignore_warnings:
                 warnings.warn(f"When setting personal value for 'best_value', you should be very carefully to avoid very early stopping.")
         
-        self.__candidates_info = []
+        self.candidates_info = np.array([])
         self.best_checkpoint_path = None
         self.step = None
         self.best_step = None
     
     
-    def _remove_files_from_directory(self, directory):
+    def is_filename_format_unique(self, format_):
+        return not ("{value}" in format_ or "{step}" in format_)
+    
+    
+    def __remove_files_from_directory(self, directory):
         filenames = os.listdir(directory)
         pathes = [os.path.join(directory, filename) for filename in filenames]
         
@@ -85,27 +113,64 @@ class ModelCheckpoint(Callback):
         return self
     
     
-    def _create_candidate(self):
-        state = self.state_dict()
+    def append_candidate(self, path=None, value=None, step=None):
+        if (path is not None and value is None) or (value is not None and path is None):
+            raise ValueError(f"'path' and 'value' must be not 'None' at the same time.")
+        
+        if path is None and value is None:
+            state = self.state_dict()
+            path = state["best_checkpoint_path"]
+            value = state["best_value"]
+            step = state["step"]
+            
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"Candidate's path '{path}' does not exist.")
+        
         candidate = {
-            "path": state["best_checkpoint_path"],
-            "value": state["best_value"],
-            "step": state["best_step"],
+            "path": path,
+            "value": value,
+            "step": step,
         }
         
-        return candidate
+        self.candidates_info = list(self.candidates_info)
+        self.candidates_info.append(candidate)
+        self.candidates_info = np.array(self.candidates_info)
     
     
-    def _filter_candidates(self, candidates):
-        values = [candidate["value"].item() for candidate in candidates]
+    def __filter_candidates(self):
+        values = [candidate["value"].item() for candidate in self.candidates_info]
         sorted_indexes = np.argsort(values)
-        sorted_candidates = candidates[sorted_indexes]
         
-        return sorted_candidates
-    
-    
+        if self.mode == "min":
+            sorted_indexes = sorted_indexes[::-1]
+        
+        
+        self.candidates_info = self.candidates_info[sorted_indexes]
+
+    def __select_candidates(self):
+        self.__filter_candidates()
+        
+        if self.candidates != "all":
+            candidates_to_remove = self.candidates_info[:self.candidates]
+            
+            removed_pathes = []
+            removed_count = 0
+            for candidate in candidates_to_remove:
+                path = candidate["path"]
+                if os.path.exists(path):
+                    os.remove(path)
+
+                removed_pathes.append(path)
+                removed_count += 1
+
+            if removed_count > 0:
+                removed_pathes = "', '".join(removed_pathes)
+                print(f"Removed {removed_count} excesses candidates: {removed_pathes}.")
+                    
+        
     def _format_filename(self, value, step=None):
         value = value.item()
+        value = str(value).replace(".", "")
         
         if step is not None:
             filename = self.filename_format.format(value=value, step=step)
@@ -142,7 +207,7 @@ class ModelCheckpoint(Callback):
         delta_value = self._get_delta_value(value)
         
         is_saved = False
-        if self._is_better(value=delta_value, best_value=self.best_value):
+        if self._is_better(value=delta_value, best_value=self.best_value) and self.candidates != 0:
             improvement_delta = abs(value - self.best_value)
             checkpoint_filename = self._format_filename(value=value, step=step)
             checkpoint_path = os.path.join(self.directory, checkpoint_filename)
@@ -157,15 +222,15 @@ class ModelCheckpoint(Callback):
             
             print(f"'best_value' is improved by {improvement_delta}! New 'best_value': {value}. Checkpoint path: '{checkpoint_path}'.")
             
+            self.append_candidate(value=value, path=checkpoint_path, step=step)
+            
             self.best_value = value
             self.best_step = step
             self.best_checkpoint_path = checkpoint_path
             
-            candidate = self._create_candidate()
-            self.__candidates_info.append(candidate)
-            
             is_saved = True
-        
+            
+            self.__select_candidates()
         
         self.step = step
         
