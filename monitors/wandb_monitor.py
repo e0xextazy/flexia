@@ -1,0 +1,2 @@
+class WANDBMonitor:
+    pass

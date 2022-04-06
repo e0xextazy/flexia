@@ -64,5 +64,3 @@ class Callback(metaclass=ABCMeta):
         
         best_value = torch.tensor(float("-inf" if self.mode == "max" else "inf"))
         self.best_value = best_value
-
-    
