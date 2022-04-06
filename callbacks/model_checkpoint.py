@@ -3,13 +3,17 @@ import warnings
 import shutil
 from dataclasses import dataclass, field
 import os
-from .callback import Callback
 import numpy as np
-
+from .callback import Callback
 
 
 @dataclass
 class ModelCheckpoint(Callback):
+    """
+    
+    """
+    
+    
     directory: str = field(default="./checkpoints")
     overwriting: bool = field(default=False)
     best_value: float = field(default="default")
@@ -22,7 +26,6 @@ class ModelCheckpoint(Callback):
                 os.mkdir(self.directory)
             else:
                 raise FileNotFoundError(f"Directory '{self.directory}' does not exist.")
-                
         else:
             if os.path.isdir(self.directory):
                 possible_checkpoints = os.listdir(self.directory)
@@ -75,10 +78,17 @@ class ModelCheckpoint(Callback):
     
     
     def is_filename_format_unique(self, format_):
+        """
+        Checks 'format_' for the unique.
+        """
+        
         return not ("{value}" in format_ or "{step}" in format_)
     
     
     def __remove_files_from_directory(self, directory):
+        """
+        Removes all files from the given directory.
+        """
         filenames = os.listdir(directory)
         pathes = [os.path.join(directory, filename) for filename in filenames]
         
@@ -138,6 +148,9 @@ class ModelCheckpoint(Callback):
     
     
     def __filter_candidates(self):
+        """
+        Filters candidates with the value relatively on the 'mode'.
+        """
         values = [candidate["value"].item() for candidate in self.candidates_info]
         sorted_indexes = np.argsort(values)
         
@@ -169,6 +182,10 @@ class ModelCheckpoint(Callback):
                     
         
     def _format_filename(self, value, step=None):
+        """
+        Formats filename for the checkpoint's path.
+        """
+        
         value = value.item()
         value = str(value).replace(".", "")
         
