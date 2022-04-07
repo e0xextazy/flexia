@@ -1,5 +1,5 @@
 import warnings
-from .callback import Callback
+from callback import Callback
 import torch
 
 
