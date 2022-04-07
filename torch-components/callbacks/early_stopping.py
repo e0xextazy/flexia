@@ -1,56 +1,43 @@
-import torch
 import warnings
-from dataclasses import dataclass, field
 from .callback import Callback
+import torch
 
 
-@dataclass
 class EarlyStopping(Callback):
-    """
-    Implementation of Early Stopping. Early Stopping stops training when monitored value has stopped improving during some time. 
+    modes = ("min", "max")
     
-    Inputs:
-        patience: int - number of attempts to beat 'best_value'. Default: 5.
-        best_value: float - the best value. Default: inf if 'mode' is 'min' otherwise -inf.
-        stopping_threshold: float - the threshold, when crossing it returns 'True'. Default: None.
-        check_gradient_exploding: bool - checks for the problem Gradient Vanishing if True. Default: False.
-        logger: bool - logs messages if True. Default: True.
-    
-    """
-    
-    patience: int = field(default=5, metadata={"help": ""})
-    best_value: float = field(default="default", metadata={"help": ""})
-    stopping_threshold: float = field(default=None, metadata={"help": ""})
-    check_gradient_exploding: bool = field(default=False, metadata={"help": "Checks for Gradient Exploding."})
-    fails: int = field(default=0, metadata={"help": "Number of fails."})
-    logger: bool = field(default=True, metadata={"help": ""})
-    
-    def __post_init__(self) -> None:
-        if not (0 < self.patience):
-            raise ValueError(f"'patience' parameter should be in range (0, +inf), but given '{self.patience}'.")
-         
-        if not isinstance(self.logger, bool):
-            if not callable(self.logger):
-                raise TypeError(f"'logger' must be callable.")
-        else:
-            self.logger = print if self.logger else False
-            
-                
-        if self.best_value == "default":
-            self._set_default_best_value()
-        else:
-            if not self.ignore_warnings:
-                warnings.warn(f"When setting personal value for 'best_value', you should be very carefully to avoid very early stopping.")
-                
+    def __init__(self, patience=5, mode="min", delta=0.0, stopping_threshold=None, check_gradient_exploding=False, fails=0, logger=print, ignore_warnings=False):
+        self.mode = mode
+        self.delta = delta
+        self.patience = patience
+        self.stopping_threshold = stopping_threshold
+        self.check_gradient_exploding = check_gradient_exploding
+        self.fails = fails
+        self.logger = logger
+        self.ignore_warnings = ignore_warnings
+        
         self.is_stopped = False
         self.training = False
         self.step = None
+        self.best_step = None
         self.case = None
+        
+        if self.mode not in self.modes:
+            raise ValueError(f"'mode' parameter shoud be 'min' or 'max', but given '{self.mode}'.")
+        
+        if not (0 <= self.delta):
+            raise ValueError(f"'delta' parameter should be in range [0, +inf), but given '{self.delta}'.")
+        
+        if not (0 < self.patience):
+            raise ValueError(f"'patience' parameter should be in range (0, +inf), but given '{self.patience}'.")
+        
+        self._set_default_best_value()
+            
     
     def state_dict(self) -> dict:
         state = {
             "patience": self.patience,
-            "best_value": self.best_value,
+            "best_value": self.best_value.item(),
             "check_gradient_exploding": self.check_gradient_exploding,
             "stopping_threshold": self.stopping_threshold,
             "fails": self.fails,
@@ -59,83 +46,87 @@ class EarlyStopping(Callback):
             "is_stopped": self.is_stopped,
             "training": self.training,
             "case": self.case,
+            "step": self.step,
+            "best_step": self.best_step,
         }
-        
-        if self.step is not None:
-            state["step"] = self.step
-        
+    
         return state
     
     def load_state_dict(self, state_dict):
         self.patience = state_dict["patience"]
-        self.best_value = state_dict["best_value"]
+        self.best_value = torch.tensor(state_dict["best_value"])
         self.check_gradient_exploding = state_dict["check_gradient_exploding"]
         self.stopping_threshold = state_dict["stopping_threshold"]
         self.fails = state_dict["fails"]
         self.delta = state_dict["delta"]
         self.mode = state_dict["mode"]
+        self.best_step = state_dict["best_step"]
         self.is_stopped = state_dict["is_stopped"]
         self.training = state_dict["training"]
         self.case = state_dict["case"]
-        
-        if "step" in state_dict:
-            self.step = state_dict["step"]
+        self.step = state_dict["step"]
         
         return self
     
     
-    def __call__(self, value:torch.Tensor, step=None, training=False) -> bool:
-        """
-        Inputs:
-            value: torch.Tensor - the value for controling Early Stopping.
-            step: int - step, where was checking for Early Stopping. If 'step' is provided, it will be displayed in the state.
-            training: bool - checks only for Gradient Exploding, useful for training if True. Default: False.
-            
-        Outputs:
-            stop: bool - controls stopping, if True the training process should be stopped.
-            
-        """
-        
+    def get_delta_value(self, value):
+        delta_value = (value - self.delta) if self.mode == "max" else (value + self.delta)
+        return delta_value
+    
+    
+    def compare_values(self, value, other) -> bool:
+        condition = (other < value) if self.mode == "max" else (other > value)   
+        return condition
+    
+    
+    def _set_default_best_value(self):
+        infinity = torch.tensor(float("inf"))
+        self.best_value = -infinity if self.mode == "max" else infinity
+    
+    
+    def __call__(self, value, step=None, training=False) -> bool:
         if not isinstance(value, torch.Tensor):
-            raise TypeError("'value' must be torch.Tensor.")
+            raise TypeError(f"Input value must be instance of torch.Tensor.")
         
-        delta_value = self._get_delta_value(value)
-        stop = False
+        delta_value = self.get_delta_value(value)        
         case = None
-        
         if not torch.isfinite(value):
             if self.check_gradient_exploding:
-                stop = True
+                self.is_stopped = True
                 case = f"The value is not finite, maybe problem of Gradient Exploding."
             else:
                 if not self.ignore_warnings:
                     warnings.warn(f"Detected Gradient Exploding the training should be stopped.")
         
-        if not training and not stop:
+        if not training and not self.is_stopped:
             if self.stopping_threshold is not None:
-                if self._is_better(best_value=delta_value, value=self.stopping_threshold):
-                    stop = True
+                if self.compare_values(value=self.stopping_threshold, other=delta_value):
+                    self.is_stopped = True
                     case = f"The value is not better than 'stopping_threshold'."
             else:
-                if not self._is_better(best_value=delta_value, value=self.best_value):
+                if not self.compare_values(value=self.best_value, other=delta_value):
                     improvement_delta =  abs(value - self.best_value)
                     case = f"'best_value' is improved by {improvement_delta}! New 'best_value': {value}."
                     self.best_value = value
+                    self.best_step = step
                     self.fails = 0
                 else:
                     self.fails += 1
                     if self.fails >= self.patience:
-                        stop = True
+                        self.is_stopped = True
                         case = f"Number of attempts is expired."
         
-        if stop: 
-            self.case = case
-        
         if self.logger and case is not None:
-            self.logger(case)
+            self.case = case
+            self.logger(self.case)
             
-        self.is_stopped = stop
         self.step = step
         self.training = training
         
-        return stop
+        return self.is_stopped
+    
+    
+    def __str__(self):
+        return f"EarlyStopping(mode='{self.mode}', delta={self.delta}, stopping_threshold={self.stopping_threshold}, check_gradient_exploding={self.check_gradient_exploding}, fails={self.fails}, ignore_warnings={self.ignore_warnings})"
+    
+    __repr__ = __str__

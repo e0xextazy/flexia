@@ -1,26 +1,43 @@
 import torch
 import warnings
 import shutil
-from dataclasses import dataclass, field
 import os
 import numpy as np
 from .callback import Callback
 
 
-@dataclass
-class ModelCheckpoint(Callback):
-    """
+class ModelCheckpoint(Callback): 
+    modes = ("min", "max")
     
-    """
-    
-    
-    directory: str = field(default="./checkpoints")
-    overwriting: bool = field(default=False)
-    best_value: float = field(default="default")
-    filename_format: str = field(default="best_checkpoint.pth")
-    candidates: int = field(default="all")
-    
-    def __post_init__(self):        
+    def __init__(self, mode="min", delta=0.0, directory="./checkpoints", overwriting=False, filename_format="best_checkpoint.pth", candidates="all", ignore_warnings=False):
+        self.mode = mode
+        self.delta = delta
+        self.directory = directory
+        self.overwriting = overwriting
+        self.filename_format = filename_format
+        self.candidates = candidates
+        self.ignore_warnings = ignore_warnings
+        
+        
+        if self.mode not in self.modes:
+            raise ValueError(f"'mode' parameter shoud be 'min' or 'max', but given '{self.mode}'.")
+        
+        if not (0 <= self.delta):
+            raise ValueError(f"'delta' parameter should be in range [0, +inf), but given '{self.delta}'.")
+        
+        
+        if isinstance(self.candidates, str):
+            if self.candidates != "all":
+                raise ValueError(f"'candidates' can be a string, but only with 1 value: 'all', but given '{self.candidates}'")
+        elif self.candidates < 0:
+            if not self.ignore_warnings:
+                print(f"Parameter 'candidates' is lower than 0, so it will be setted to 0 (no saving checkpoints during training).")
+            self.candidates = 0
+        elif self.candidates == 0:
+            if not self.ignore_warnings:
+                print(f"Parameter 'candidates' was setted to '0', which means that no saving checkpoints during training.")
+        
+        
         if not os.path.exists(self.directory):
             if self.overwriting:
                 os.mkdir(self.directory)
@@ -40,19 +57,6 @@ class ModelCheckpoint(Callback):
             else:
                 raise NotADirectoryError(f"'{self.directory}' is not directory.")
         
-        
-        if isinstance(self.candidates, str):
-            if self.candidates != "all":
-                raise ValueError(f"'candidates' can be a string, but only with 1 value: 'all', but given '{self.candidates}'")
-        elif self.candidates < 0:
-            if not self.ignore_warnings:
-                print(f"Parameter 'candidates' is lower than 0, so it will be setted to 0 (no saving checkpoints during training).")
-            self.candidates = 0
-            
-        elif self.candidates == 0:
-            if not self.ignore_warnings:
-                print(f"Parameter 'candidates' was setted to '0', which means that no saving checkpoints during training.")
-        
         if self.filename_format.count(".") > 1:
             raise ValueError(f"'filename_format' must not has '.' in filename, but given '{self.filename_format}'.")
         
@@ -63,14 +67,10 @@ class ModelCheckpoint(Callback):
             if self.candidates > 1:
                 if not self.ignore_warnings:
                     warnings.warn(f"When 'filename_format' is not unique, number of candidates does not affect anything.")
-        
-        
-        if self.best_value == "default":
-            self._set_default_best_value()
-        else:
-            if not self.ignore_warnings:
-                warnings.warn(f"When setting personal value for 'best_value', you should be very carefully to avoid very early stopping.")
-        
+            
+            
+        self._set_default_best_value()
+            
         self.candidates_info = np.array([])
         self.best_checkpoint_path = None
         self.step = None
@@ -78,17 +78,10 @@ class ModelCheckpoint(Callback):
     
     
     def is_filename_format_unique(self, format_):
-        """
-        Checks 'format_' for the unique.
-        """
-        
         return not ("{value}" in format_ or "{step}" in format_)
     
     
     def __remove_files_from_directory(self, directory):
-        """
-        Removes all files from the given directory.
-        """
         filenames = os.listdir(directory)
         pathes = [os.path.join(directory, filename) for filename in filenames]
         
@@ -98,12 +91,26 @@ class ModelCheckpoint(Callback):
             elif os.path.isdir(path):
                 shutil.rmtree(path)
                 
-                
+    
+    def get_delta_value(self, value):
+        delta_value = (value - self.delta) if self.mode == "max" else (value + self.delta)
+        return delta_value
+    
+    
+    def compare_values(self, value, other) -> bool:
+        condition = (other < value) if self.mode == "max" else (other > value)   
+        return condition
+    
+    
+    def _set_default_best_value(self):
+        infinity = torch.tensor(float("inf"))
+        self.best_value = -infinity if self.mode == "max" else infinity
+    
     def state_dict(self):
         state = {
             "directory": self.directory,
             "best_checkpoint_path": self.best_checkpoint_path,
-            "best_value": self.best_value,
+            "best_value": self.best_value.item(),
             "filename_format": self.filename_format,
             "step": self.step,
             "best_step": self.best_step,
@@ -115,7 +122,7 @@ class ModelCheckpoint(Callback):
     def load_state_dict(self, state_dict):
         self.directory = state_dict["directory"]
         self.best_checkpoint_path = state_dict["best_checkpoint_path"]
-        self.best_value = state_dict["best_value"]
+        self.best_value = torch.tensor(state_dict["best_value"])
         self.filename_format = state_dict["filename_format"]
         self.step = state_dict["step"]
         self.best_step = state_dict["best_step"]
@@ -124,15 +131,9 @@ class ModelCheckpoint(Callback):
     
     
     def append_candidate(self, path=None, value=None, step=None):
-        if (path is not None and value is None) or (value is not None and path is None):
+        if path is None or value is None:
             raise ValueError(f"'path' and 'value' must be not 'None' at the same time.")
-        
-        if path is None and value is None:
-            state = self.state_dict()
-            path = state["best_checkpoint_path"]
-            value = state["best_value"]
-            step = state["step"]
-            
+         
         if not os.path.exists(path):
             raise FileNotFoundError(f"Candidate's path '{path}' does not exist.")
         
@@ -148,15 +149,11 @@ class ModelCheckpoint(Callback):
     
     
     def __filter_candidates(self):
-        """
-        Filters candidates with the value relatively on the 'mode'.
-        """
         values = [candidate["value"].item() for candidate in self.candidates_info]
         sorted_indexes = np.argsort(values)
         
         if self.mode == "min":
             sorted_indexes = sorted_indexes[::-1]
-        
         
         self.candidates_info = self.candidates_info[sorted_indexes]
 
@@ -181,11 +178,7 @@ class ModelCheckpoint(Callback):
                 print(f"Removed {removed_count} excesses candidates: {removed_pathes}.")
                     
         
-    def _format_filename(self, value, step=None):
-        """
-        Formats filename for the checkpoint's path.
-        """
-        
+    def format_filename(self, value, step=None):
         value = value.item()
         value = str(value).replace(".", "")
         
@@ -219,14 +212,14 @@ class ModelCheckpoint(Callback):
         
     def __call__(self, value, model, optimizer=None, scheduler=None, step=None):
         if not isinstance(value, torch.Tensor):
-            raise TypeError("'value' must be torch.Tensor.")
+            raise TypeError(f"Input value must be instance of torch.Tensor.")
         
         delta_value = self._get_delta_value(value)
         
         is_saved = False
-        if self._is_better(value=delta_value, best_value=self.best_value) and self.candidates != 0:
+        if self.compare_values(value=delta_value, other=self.best_value) and self.candidates != 0:
             improvement_delta = abs(value - self.best_value)
-            checkpoint_filename = self._format_filename(value=value, step=step)
+            checkpoint_filename = self.format_filename(value=value, step=step)
             checkpoint_path = os.path.join(self.directory, checkpoint_filename)
             
             checkpoint = self.create_checkpoint(value=value, 
@@ -252,3 +245,9 @@ class ModelCheckpoint(Callback):
         self.step = step
         
         return is_saved
+    
+    
+    def __str__(self):
+        return f"ModelCheckpoint(mode='{self.mode}', delta={self.delta}, directory='{self.directory}', overwriting={self.overwriting}, filename_format='{self.filename_format}', candidates={self.candidates}, ignore_warnings={self.ignore_warnings})"
+
+    __repr__ = __str__
