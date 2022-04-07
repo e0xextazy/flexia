@@ -1,5 +1,5 @@
 import torch
-from arguments import Arguments
+from trainer.arguments import Arguments
 from utils import seed_everything, get_optimizer, get_scheduler
 from callbacks import Callbacks
 import random
