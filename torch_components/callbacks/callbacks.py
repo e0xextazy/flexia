@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 import inspect
-from callback import Callback
+from .callback import Callback
 import warnings
 
 

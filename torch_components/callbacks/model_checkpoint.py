@@ -3,7 +3,7 @@ import warnings
 import shutil
 import os
 import numpy as np
-from callback import Callback
+from .callback import Callback
 
 
 class ModelCheckpoint(Callback): 
