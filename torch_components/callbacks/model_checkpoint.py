@@ -1,15 +1,51 @@
 import torch
+from torch import nn
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import _LRScheduler
 import warnings
 import shutil
 import os
-import numpy as np
+from typing import  Union, Optional, Callable
 from .callback import Callback
+from .utils import is_mode_valid, get_default_best_value, get_delta_value, compare_values
 
 
-class ModelCheckpoint(Callback): 
-    modes = ("min", "max")
+class ModelCheckpoint(Callback):  
+    """
+    Class description
     
-    def __init__(self, mode="min", delta=0.0, directory="./checkpoints", overwriting=False, filename_format="best_checkpoint.pth", candidates="all", ignore_warnings=False):
+    Inputs:
+        mode: str - description.
+        delta: Union[float, int] - description.
+        directory: str - description.
+        overwriting: bool - description.
+        filename_format: str - description.
+        candidates: Union[int, float, str] - description.
+        ignore_warnings: bool - description.
+    
+    Errors:
+        ValueError - description.
+        NotADirectoryError - description.
+        FileNotFoundError - description.
+        
+        
+    Examples:
+        >>> example
+    
+    """
+    
+    def __init__(self, 
+                 mode:str="min", 
+                 delta:Union[float, int]=0.0, 
+                 directory:str="./", 
+                 overwriting:bool=False, 
+                 filename_format:str="checkpoint_{step}.pth", 
+                 candidates:Union[str, float, int]="all", 
+                 ignore_warnings:bool=False, 
+                 logger:Callable[[str], str]=print):
+        
+        super().__init__()
+        
         self.mode = mode
         self.delta = delta
         self.directory = directory
@@ -17,25 +53,24 @@ class ModelCheckpoint(Callback):
         self.filename_format = filename_format
         self.candidates = candidates
         self.ignore_warnings = ignore_warnings
+        self.logger = logger
         
         
-        if self.mode not in self.modes:
+        if not is_mode_valid(self.mode):
             raise ValueError(f"'mode' parameter shoud be 'min' or 'max', but given '{self.mode}'.")
-        
-        if not (0 <= self.delta):
-            raise ValueError(f"'delta' parameter should be in range [0, +inf), but given '{self.delta}'.")
         
         
         if isinstance(self.candidates, str):
             if self.candidates != "all":
                 raise ValueError(f"'candidates' can be a string, but only with 1 value: 'all', but given '{self.candidates}'")
-        elif self.candidates < 0:
-            if not self.ignore_warnings:
-                print(f"Parameter 'candidates' is lower than 0, so it will be setted to 0 (no saving checkpoints during training).")
-            self.candidates = 0
-        elif self.candidates == 0:
-            if not self.ignore_warnings:
-                print(f"Parameter 'candidates' was setted to '0', which means that no saving checkpoints during training.")
+        else:
+            if self.candidates < 0:
+                if not self.ignore_warnings:
+                    print(f"Parameter 'candidates' is lower than 0, so it will be setted to 0 (no saving checkpoints during training).")
+                self.candidates = 0
+            elif self.candidates == 0:
+                if not self.ignore_warnings:
+                    print(f"Parameter 'candidates' was setted to '0', which means that no saving checkpoints during training.")
         
         
         if not os.path.exists(self.directory):
@@ -52,36 +87,42 @@ class ModelCheckpoint(Callback):
                     else:
                         string_possible_checkpoints = "', '".join(possible_checkpoints)
                         if not self.ignore_warnings:
-                            warnings.warn(f"Found files: {string_possible_checkpoints} in '{self.directory}'"
-                                          "Be carefully with setting 'filename_format' to avoid overwritting other files.")
+                            warnings.warn(f"Found files in '{self.directory}' Be carefully with setting 'filename_format' to avoid overwriting other files.")
             else:
                 raise NotADirectoryError(f"'{self.directory}' is not directory.")
         
         if self.filename_format.count(".") > 1:
             raise ValueError(f"'filename_format' must not has '.' in filename, but given '{self.filename_format}'.")
         
-        if self.is_filename_format_unique(self.filename_format):
+        if not self.is_filename_format_unique(self.filename_format):
             if not self.ignore_warnings:
                 warnings.warn(f"Seems that 'filename_format' is not unique, maybe will be overwrited some useful checkpoints during training.")
             
-            if self.candidates > 1:
-                if not self.ignore_warnings:
-                    warnings.warn(f"When 'filename_format' is not unique, number of candidates does not affect anything.")
+            if not isinstance(self.candidates, str):
+                if self.candidates > 1:
+                    if not self.ignore_warnings:
+                        warnings.warn(f"When 'filename_format' is not unique, number of candidates does not affect anything.")
             
             
-        self._set_default_best_value()
-            
-        self.candidates_info = np.array([])
+        self.best_value = get_default_best_value(self.mode)
+        self.all_candidates = []
         self.best_checkpoint_path = None
         self.step = None
         self.best_step = None
     
     
-    def is_filename_format_unique(self, format_):
-        return not ("{value}" in format_ or "{step}" in format_)
+    def is_filename_format_unique(self, format_:str) -> bool:
+        """
+        description
+        """
+        return "{value}" in format_ or "{step}" in format_
     
     
-    def __remove_files_from_directory(self, directory):
+    def __remove_files_from_directory(self, directory:str) -> None:
+        """
+        description
+        """
+        
         filenames = os.listdir(directory)
         pathes = [os.path.join(directory, filename) for filename in filenames]
         
@@ -92,21 +133,7 @@ class ModelCheckpoint(Callback):
                 shutil.rmtree(path)
                 
     
-    def get_delta_value(self, value):
-        delta_value = (value - self.delta) if self.mode == "max" else (value + self.delta)
-        return delta_value
-    
-    
-    def compare_values(self, value, other) -> bool:
-        condition = (other < value) if self.mode == "max" else (other > value)   
-        return condition
-    
-    
-    def _set_default_best_value(self):
-        infinity = torch.tensor(float("inf"))
-        self.best_value = -infinity if self.mode == "max" else infinity
-    
-    def state_dict(self):
+    def state_dict(self) -> dict:
         state = {
             "directory": self.directory,
             "best_checkpoint_path": self.best_checkpoint_path,
@@ -119,7 +146,7 @@ class ModelCheckpoint(Callback):
         return state
     
     
-    def load_state_dict(self, state_dict):
+    def load_state_dict(self, state_dict:dict):
         self.directory = state_dict["directory"]
         self.best_checkpoint_path = state_dict["best_checkpoint_path"]
         self.best_value = torch.tensor(state_dict["best_value"])
@@ -127,59 +154,50 @@ class ModelCheckpoint(Callback):
         self.step = state_dict["step"]
         self.best_step = state_dict["best_step"]
         
-        return self
+        return self     
     
     
-    def append_candidate(self, path=None, value=None, step=None):
-        if path is None or value is None:
-            raise ValueError(f"'path' and 'value' must be not 'None' at the same time.")
-         
+    def append_candidate(self, path:str, value:Union[float, torch.Tensor, int]) -> None:   
+        """
+        description
+        """
+        
         if not os.path.exists(path):
-            raise FileNotFoundError(f"Candidate's path '{path}' does not exist.")
+            raise FileNotFoundError("`path` does not exist.")
         
-        candidate = {
-            "path": path,
-            "value": value,
-            "step": step,
-        }
+        self.all_candidates.append([path, value])
         
-        self.candidates_info = list(self.candidates_info)
-        self.candidates_info.append(candidate)
-        self.candidates_info = np.array(self.candidates_info)
     
-    
-    def __filter_candidates(self):
-        values = [candidate["value"].item() for candidate in self.candidates_info]
-        sorted_indexes = np.argsort(values)
-        
-        if self.mode == "min":
-            sorted_indexes = sorted_indexes[::-1]
-        
-        self.candidates_info = self.candidates_info[sorted_indexes]
-
-    def __select_candidates(self):
-        self.__filter_candidates()
-        
+    def __select_candidates(self) -> None:
+        """
+        description
+        """
         if self.candidates != "all":
-            candidates_to_remove = self.candidates_info[:self.candidates]
+            if len(self.all_candidates) >= self.candidates:
+                selected_candidates = self.all_candidates[-self.candidates:]
+                deleted_candidates = 0
+                for candidate in self.all_candidates:
+                    if candidate not in selected_candidates:
+                        path, value = candidate
+                        
+                        if os.path.exists(path):
+                            os.remove(path)
+
+                        deleted_candidates += 1
+                
+                self.all_candidates = self.all_candidates[-self.candidates:]
+                print(f"Deleted {deleted_candidates} candidates from '{self.directory}'.")
+                
             
-            removed_pathes = []
-            removed_count = 0
-            for candidate in candidates_to_remove:
-                path = candidate["path"]
-                if os.path.exists(path):
-                    os.remove(path)
-
-                removed_pathes.append(path)
-                removed_count += 1
-
-            if removed_count > 0:
-                removed_pathes = "', '".join(removed_pathes)
-                print(f"Removed {removed_count} excesses candidates: {removed_pathes}.")
-                    
         
-    def format_filename(self, value, step=None):
-        value = value.item()
+    def format_filename(self, value:Union[float, torch.Tensor, int], step:int=None) -> str:
+        """
+        description
+        """
+        
+        if isinstance(value, torch.Tensor):
+            value = value.item()
+        
         value = str(value).replace(".", "")
         
         if step is not None:
@@ -190,7 +208,11 @@ class ModelCheckpoint(Callback):
         return filename
         
     
-    def create_checkpoint(self, value, model, optimizer=None, scheduler=None, step=None):
+    def create_checkpoint(self, value:Union[float, torch.Tensor, int], model:nn.Module, optimizer:Optional[Optimizer]=None, scheduler:Optional[_LRScheduler]=None, step:int=None) -> dict:
+        """
+        description
+        """
+        
         if optimizer is None:
             if not self.ignore_warnings:
                 warnings.warn("When saving checkpoint, better additional save the optimizer's state to continue training.")
@@ -210,15 +232,27 @@ class ModelCheckpoint(Callback):
         return checkpoint
         
         
-    def __call__(self, value, model, optimizer=None, scheduler=None, step=None):
-        if not isinstance(value, torch.Tensor):
-            raise TypeError(f"Input value must be instance of torch.Tensor.")
+    def __call__(self, value:Union[float, torch.Tensor, int], model:nn.Module, optimizer:Optional[Optimizer]=None, scheduler:Optional[_LRScheduler]=None, step:int=None) -> bool:
+        """
+        Inputs:
+            value - description.
+            model - description.
+            optimizer - description.
+            scheduler - description.
+            step - description.
         
-        delta_value = self._get_delta_value(value)
+        Outputs:
+            is_saved: bool - description.
+            
+        """
+        
+        if not isinstance(value, torch.Tensor):
+            value = torch.tensor(value)
+        
+        delta_value = get_delta_value(value=value, delta=self.delta, mode=self.mode)
         
         is_saved = False
-        if self.compare_values(value=delta_value, other=self.best_value) and self.candidates != 0:
-            improvement_delta = abs(value - self.best_value)
+        if compare_values(value=delta_value, other=self.best_value, mode=self.mode) and self.candidates != 0:
             checkpoint_filename = self.format_filename(value=value, step=step)
             checkpoint_path = os.path.join(self.directory, checkpoint_filename)
             
@@ -230,17 +264,17 @@ class ModelCheckpoint(Callback):
             
             torch.save(checkpoint, checkpoint_path)
             
-            print(f"'best_value' is improved by {improvement_delta}! New 'best_value': {value}. Checkpoint path: '{checkpoint_path}'.")
+            improvement_delta = abs(value - self.best_value)
+            self.logger(f"'best_value' is improved by {improvement_delta}! New 'best_value': {value}. Checkpoint path: '{checkpoint_path}'.")
             
-            self.append_candidate(value=value, path=checkpoint_path, step=step)
+            self.append_candidate(value=value.item(), path=checkpoint_path)
             
             self.best_value = value
             self.best_step = step
             self.best_checkpoint_path = checkpoint_path
             
-            is_saved = True
-            
             self.__select_candidates()
+            is_saved = True
         
         self.step = step
         
