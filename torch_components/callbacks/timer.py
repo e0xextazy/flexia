@@ -1,22 +1,21 @@
-from typing import Union, Optional, Callable
+from typing import Union, Callable
 from datetime import timedelta, datetime
+import warnings
 from pytimeparse.timeparse import timeparse
 from .callback import Callback
 
 
 class Timer(Callback):
     """
-    Class description
+    Timer stops training when the duration of the training stage reaches a certain limit of time. 
+    It is useful when you are using time-limit sources, e.g. Google Colab or Kaggle Kernels/Notebooks.
     
     Inputs:
-        duration: Union[str, timedelta] - description.
-        duration_separator: str - description.
-        ignore_warnings: bool - description.
-        logger: Callable[[str], str] - description.
-    
-    Errors:
-        TypeError - description.
-        
+        duration: Union[str, timedelta] - duration of time after reaching whom, the training should be stopped. Default: '01:00:00:00'.
+        duration_separator: str - seperator for input duration's format. Default: ':'.
+        ignore_warnings: bool - if True the further warnings will be ignored. Default: False.
+        logger: Callable[[str], str] - logging method. Default: print.
+
     Examples:
         >>> example
     
@@ -40,6 +39,9 @@ class Timer(Callback):
                 duration_values = tuple([int(value) for value in duration_values])
                 days, hours, minutes, seconds = duration_values 
             except:
+                if not self.ingore_warnings:
+                    warnings.warn(f"Failed to parse the given duration format, trying to understand format with `timeparse` module.")
+                    
                 seconds = timeparse(self.duration)
                 days, hours, minutes = 0, 0, 0
             
@@ -78,6 +80,11 @@ class Timer(Callback):
         return self
         
     def update(self) -> bool:
+        """
+        Outputs:
+            is_stopped: bool - True if duration time is reached.
+        """
+        
         now = datetime.now()
         self.elapsed_time = abs(now - self.start)
         self.remaining_time = timedelta(seconds=max(0, (self.duration - self.elapsed_time).total_seconds()))
@@ -89,6 +96,6 @@ class Timer(Callback):
         return self.is_stopped
     
     def __str__(self):
-        return f"Timer(duration='{self.duration}', total={self.total}, ignore_warnings={self.ignore_warnings}, duration_separator={self.duration_separator})"
+        return f"Timer(duration='{self.duration}', ignore_warnings={self.ignore_warnings}, duration_separator='{self.duration_separator}')"
     
     __repr__ = __str__

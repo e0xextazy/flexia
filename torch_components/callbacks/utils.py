@@ -1,43 +1,30 @@
+# torch_components.callbacks.utils
+
+import warnings
 import torch
 from typing import Union
-from .constants import modes_options
+from torch_components.callbacks.constants import modes_options
+from ..utils import  to_tensors
 
 
-def is_mode_valid(mode:str) -> bool:
-    return mode in modes_options
+def get_mode_values(mode:str="min"):
+    if mode not in modes_options:
+        modes = list(modes_options.keys())
+        raise ValueError(f"`{mode}` is not valid, choose one of {modes}.")
+    else:
+        mode_values = modes_options[mode]
+        return mode_values
+
+
+def get_delta_value(value:Union[torch.Tensor, float, int], delta:Union[torch.Tensor, float, int]=0.0, mode:str="min") -> torch.Tensor:
+    value, delta = to_tensors(value, delta)
+    
+    *_, delta_operation = get_mode_values(mode)
+    return delta_operation(value, delta)
     
     
-def get_delta_value(value:torch.Tensor, delta:Union[float, int]=0.0, mode:str="min") -> torch.Tensor:
-    if not isinstance(value, torch.Tensor):
-        value = torch.tensor(value)
+def compare_values(value:Union[torch.Tensor, float, int], other:Union[torch.Tensor, float, int], mode:str="min") -> bool:    
+    value, other = to_tensors(value, other)
     
-    if not is_mode_valid(mode):
-        raise ValueError(f"Given mode is not provided, possible modes: 'min' or 'max'.")
-    
-    default_best_value, compare_operation, delta_operation = modes_options[mode]
-    delta_value = delta_operation(value, delta)
-    return delta_value
-    
-    
-def get_default_best_value(mode:str) -> torch.Tensor:
-    if not is_mode_valid(mode):
-        raise ValueError(f"Given mode is not provided, possible modes: 'min' or 'max'.")
-    
-    default_best_value, compare_operation, delta_operation = modes_options[mode]
-    return default_best_value
-    
-    
-def compare_values(value:torch.Tensor, other:torch.Tensor, mode:str="min") -> bool:
-    if not is_mode_valid(mode):
-        raise ValueError(f"Given mode is not provided, possible modes: 'min' or 'max'.")
-    
-    if not isinstance(value, torch.Tensor):
-        value = torch.tensor(value)
-    
-    if not isinstance(other, torch.Tensor):
-        other = torch.tensor(other)
-    
-    default_best_value, compare_operation, delta_operation = modes_options[mode]
-    result = compare_operation(value, other)
-    
-    return result
+    *_, compare_operation, _ = get_mode_values(mode)
+    return compare_operation(value, other)

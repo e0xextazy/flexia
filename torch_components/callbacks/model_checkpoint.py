@@ -5,32 +5,40 @@ from torch.optim.lr_scheduler import _LRScheduler
 import warnings
 import shutil
 import os
-from typing import  Union, Optional, Callable
+from typing import Callable, Union, Optional
 from .callback import Callback
-from .utils import is_mode_valid, get_default_best_value, get_delta_value, compare_values
+from .utils import compare_values, get_delta_value, get_mode_values, compare_operation
+from ..utils import to_tensor
 
 
 class ModelCheckpoint(Callback):  
     """
-    Class description
+    Model Checkpoint saves the model's weights (optimizer's state, and scheduler's state) when the monitored value has been improved.
     
     Inputs:
-        mode: str - description.
-        delta: Union[float, int] - description.
-        directory: str - description.
-        overwriting: bool - description.
-        filename_format: str - description.
-        candidates: Union[int, float, str] - description.
-        ignore_warnings: bool - description.
-    
-    Errors:
-        ValueError - description.
-        NotADirectoryError - description.
-        FileNotFoundError - description.
-        
-        
+        mode: str - the direction where the monitored value must be improving. Default: 'min'.
+        delta: Union[float, int] - small value on which the monitored value must be improved. It is useful for preventing very small improvements, e.g +1e-7. Default: 0.0. 
+        directory: str - directory, where futher checkpoints will be saved. Default: './'.
+        overwriting: bool - if True, the `directory` will be overwrited (all files and folders will be deleted), if `directory` does not exists, ModelCheckpoint will make itself. Default: False.
+        filename_format: str - format of checkpoints' filename.
+        candidates: Union[int, float, str] - the number of candidates (checkpoints), that will be left after training. Default: 1.
+        ignore_warnings: bool - if True the further warnings will be ignored. Default: False.
+        logger: Callable[[str], str] - logging method. Default: print.
+            
     Examples:
-        >>> example
+        # Example of monitoring Accuracy score. Firstly, ModelCheckpoint will make directory './checkpoints', 
+        # and then will write checkpoints there if monitored value will be improved by 1% (0.01) with format 'awesome_checkpoint_{step}.pth', 
+        # e.g for 1st step the name will be 'awersome_checkpoint_1.pth'. In the end, there will be 3 saved checkpoints.
+
+        >>> from torch_components.callbacks import ModelCheckpoint
+        >>> checkpoints_path = "./checkpoints"
+        >>> callback = ModelCheckpoint(directory=checkpoints_path, 
+                                       overwriting=True,
+                                       mode="max", 
+                                       delta=0.01, 
+                                       filename_format="awesome_checkpoint_{step}.pth", 
+                                       candidates=3, 
+                                       ignore_warnings=True)
     
     """
     
@@ -39,7 +47,7 @@ class ModelCheckpoint(Callback):
                  delta:Union[float, int]=0.0, 
                  directory:str="./", 
                  overwriting:bool=False, 
-                 filename_format:str="checkpoint_{step}.pth", 
+                 filename_format:str="checkpoint_{step}_{value}.pth", 
                  candidates:Union[str, float, int]="all", 
                  ignore_warnings:bool=False, 
                  logger:Callable[[str], str]=print):
@@ -55,10 +63,7 @@ class ModelCheckpoint(Callback):
         self.ignore_warnings = ignore_warnings
         self.logger = logger
         
-        
-        if not is_mode_valid(self.mode):
-            raise ValueError(f"'mode' parameter shoud be 'min' or 'max', but given '{self.mode}'.")
-        
+        self.best_value, *_ = get_mode_values(self.mode)
         
         if isinstance(self.candidates, str):
             if self.candidates != "all":
@@ -66,11 +71,11 @@ class ModelCheckpoint(Callback):
         else:
             if self.candidates < 0:
                 if not self.ignore_warnings:
-                    print(f"Parameter 'candidates' is lower than 0, so it will be setted to 0 (no saving checkpoints during training).")
+                    warnings.warn(f"Parameter 'candidates' is lower than 0, so it will be setted to 0 (no saving checkpoints during training).")
                 self.candidates = 0
             elif self.candidates == 0:
                 if not self.ignore_warnings:
-                    print(f"Parameter 'candidates' was setted to '0', which means that no saving checkpoints during training.")
+                    warnings.warn(f"Parameter 'candidates' was setted to '0', which means that no saving checkpoints during training.")
         
         
         if not os.path.exists(self.directory):
@@ -103,8 +108,6 @@ class ModelCheckpoint(Callback):
                     if not self.ignore_warnings:
                         warnings.warn(f"When 'filename_format' is not unique, number of candidates does not affect anything.")
             
-            
-        self.best_value = get_default_best_value(self.mode)
         self.all_candidates = []
         self.best_checkpoint_path = None
         self.step = None
@@ -113,14 +116,14 @@ class ModelCheckpoint(Callback):
     
     def is_filename_format_unique(self, format_:str) -> bool:
         """
-        description
+        Checks for the uniqueness of the format.
         """
         return "{value}" in format_ or "{step}" in format_
     
     
     def __remove_files_from_directory(self, directory:str) -> None:
         """
-        description
+        Removes all files and folders from directory.
         """
         
         filenames = os.listdir(directory)
@@ -149,7 +152,7 @@ class ModelCheckpoint(Callback):
     def load_state_dict(self, state_dict:dict):
         self.directory = state_dict["directory"]
         self.best_checkpoint_path = state_dict["best_checkpoint_path"]
-        self.best_value = torch.tensor(state_dict["best_value"])
+        self.best_value = to_tensor(state_dict["best_value"])
         self.filename_format = state_dict["filename_format"]
         self.step = state_dict["step"]
         self.best_step = state_dict["best_step"]
@@ -159,7 +162,7 @@ class ModelCheckpoint(Callback):
     
     def append_candidate(self, path:str, value:Union[float, torch.Tensor, int]) -> None:   
         """
-        description
+        Appends new candidate.
         """
         
         if not os.path.exists(path):
@@ -170,7 +173,7 @@ class ModelCheckpoint(Callback):
     
     def __select_candidates(self) -> None:
         """
-        description
+        Deleted not selected candidates.
         """
         if self.candidates != "all":
             if len(self.all_candidates) >= self.candidates:
@@ -186,13 +189,13 @@ class ModelCheckpoint(Callback):
                         deleted_candidates += 1
                 
                 self.all_candidates = self.all_candidates[-self.candidates:]
-                print(f"Deleted {deleted_candidates} candidates from '{self.directory}'.")
+                self.logger(f"Deleted {deleted_candidates} candidates from '{self.directory}'.")
                 
             
         
-    def format_filename(self, value:Union[float, torch.Tensor, int], step:int=None) -> str:
+    def format_filename(self, value:Union[float, torch.Tensor, int], step:Optional[int]=None) -> str:
         """
-        description
+        Formats checkpoint's filename with the given value and step.
         """
         
         if isinstance(value, torch.Tensor):
@@ -208,9 +211,20 @@ class ModelCheckpoint(Callback):
         return filename
         
     
-    def create_checkpoint(self, value:Union[float, torch.Tensor, int], model:nn.Module, optimizer:Optional[Optimizer]=None, scheduler:Optional[_LRScheduler]=None, step:int=None) -> dict:
+    def create_checkpoint(self, value:Union[torch.Tensor, float, int], model:nn.Module, optimizer:Optional[Optimizer]=None, scheduler:Optional[_LRScheduler]=None, step:Optional[int]=None) -> dict:
         """
-        description
+        Creates checkpoints dictionary for further saving.
+        
+        Inputs:
+            value: Union[torch.Tensor, float, int] - monitored value.
+            model: nn.Module - PyTorch's module.
+            optimizer: Optional[Optimizer] - PyTorch's or HuggingFace Transformers's optimizer.
+            scheduler: Optional[_LRScheduler] - PyTorch's or HuggingFace Transformers's scheduler.
+            step: Optional[int] - step of calling Model Checkpoint.
+            
+        Outputs:
+            checkpoint: dict - created checkpoint.
+        
         """
         
         if optimizer is None:
@@ -232,25 +246,24 @@ class ModelCheckpoint(Callback):
         return checkpoint
         
         
-    def __call__(self, value:Union[float, torch.Tensor, int], model:nn.Module, optimizer:Optional[Optimizer]=None, scheduler:Optional[_LRScheduler]=None, step:int=None) -> bool:
+    def __call__(self, value:Union[torch.Tensor, float, int], model:nn.Module, optimizer:Optional[Optimizer]=None, scheduler:Optional[_LRScheduler]=None, step:Optional[int]=None) -> bool:
         """
         Inputs:
-            value - description.
-            model - description.
-            optimizer - description.
-            scheduler - description.
-            step - description.
+            value: Union[torch.Tensor, float, int] - monitored value.
+            model: nn.Module - PyTorch's module.
+            optimizer: Optional[Optimizer] - PyTorch's or HuggingFace Transformers's optimizer.
+            scheduler: Optional[_LRScheduler] - PyTorch's or HuggingFace Transformers's scheduler.
+            step: Optional[int] - step of calling Model Checkpoint.
         
         Outputs:
-            is_saved: bool - description.
+            is_saved: bool - returns True if checkpoint was saved.
             
         """
         
-        if not isinstance(value, torch.Tensor):
-            value = torch.tensor(value)
+        value = to_tensor(value)
         
         delta_value = get_delta_value(value=value, delta=self.delta, mode=self.mode)
-        
+
         is_saved = False
         if compare_values(value=delta_value, other=self.best_value, mode=self.mode) and self.candidates != 0:
             checkpoint_filename = self.format_filename(value=value, step=step)
@@ -281,7 +294,7 @@ class ModelCheckpoint(Callback):
         return is_saved
     
     
-    def __str__(self):
+    def __str__(self) -> str:
         return f"ModelCheckpoint(mode='{self.mode}', delta={self.delta}, directory='{self.directory}', overwriting={self.overwriting}, filename_format='{self.filename_format}', candidates={self.candidates}, ignore_warnings={self.ignore_warnings})"
 
     __repr__ = __str__
