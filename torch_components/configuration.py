@@ -1,8 +1,6 @@
-# torch_components.configuration
-
 import json
 from typing import Any
-from addict import Dict
+from .third_party.addict import Dict
 
 
 class Configuration:
@@ -13,7 +11,7 @@ class Configuration:
     def __init__(self, *args, **kwargs:dict) -> None:
         if len(args) != 0:
             raise ValueError(f"You must put attributes in format key=value.")
-            
+
         self.attributes = Dict(kwargs)
 
     def get_attributes_names(self) -> list:
