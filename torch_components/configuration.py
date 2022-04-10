@@ -1,6 +1,6 @@
 import json
 from typing import Any
-from third_party.addict.addict import Dict
+from third_party.addict import Dict
 
 
 class Configuration:
