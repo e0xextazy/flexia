@@ -1,6 +1,3 @@
-# torch_components.callbacks.utils
-
-import warnings
 import torch
 from typing import Union
 from torch_components.callbacks.constants import modes_options
