@@ -7,7 +7,7 @@ import shutil
 import os
 from typing import Callable, Union, Optional
 from .callback import Callback
-from .utils import compare_values, get_delta_value, get_mode_values, compare_operation
+from .utils import compare_values, get_delta_value, get_mode_values
 from ..utils import to_tensor
 
 

@@ -2,7 +2,7 @@ import warnings
 import torch
 from typing import Callable, Union, Optional
 from .callback import Callback
-from .utils import compare_values, get_delta_value, get_mode_values, compare_operation
+from .utils import compare_values, get_delta_value, get_mode_values
 from ..utils import to_tensor
 
 
@@ -141,7 +141,7 @@ class EarlyStopping(Callback):
                     self.is_stopped = True
                     case = f"Monitored value reached `stopping_threshold`. Value: {self.value}. Stopping threshold: {self.stopping_threshold}."
             else:
-                if compare_operation(value=delta_value, other=self.best_value, mode=self.mode):
+                if compare_values(value=delta_value, other=self.best_value, mode=self.mode):
                     improvement_delta = abs(value - self.best_value)
                     case = f"Moniroted value is improved by {improvement_delta}! New `best_value`: {value}."
                     self.best_value = value
