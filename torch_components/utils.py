@@ -1,5 +1,5 @@
 import torch
-from torch import Optimizer
+from torch.optim import Optimizer
 import numpy as np
 from typing import Any, Union, Optional
 import random
