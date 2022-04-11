@@ -34,7 +34,7 @@ class Configuration:
     def to_json_string(self) -> str:
         return json.dumps(self.attributes)
     
-    def to_json(self, path) -> str:
+    def to_json(self, path:str) -> str:
         with open(path, "w", encoding="utf-8") as file:
             data = self.to_json_string()
             file.write(data)
@@ -44,7 +44,7 @@ class Configuration:
     def from_json_string(self, string:str) -> dict:
         return json.loads(string)
     
-    def from_json(self, path) -> "Configuration":
+    def from_json(self, path:str) -> "Configuration":
         with open(path, "r", encoding="utf-8") as file:
             data = self.from_json_string(file.read())
         
@@ -60,8 +60,11 @@ class Configuration:
         attributes_string = ", ".join([f"{k}={v}" for k, v in self.attributes.items()])
         return f"Configuration({attributes_string})"
     
-    def __contains__(self, attribute):
-        return attribute in self.attributes
+    def __contains__(self, attribute:str):
+        return attribute in self.attribute
+        
+    def get(self, attribute:str, default:Any) -> Any:
+        return self.attributes.get(attribute, default)
 
 
     __repr__ = __str__

@@ -48,7 +48,7 @@ class ModelCheckpoint(Callback):
                  directory:str="./", 
                  overwriting:bool=False, 
                  filename_format:str="checkpoint_{step}_{value}.pth", 
-                 num_candidates:Union[str, float, int]="all", 
+                 num_candidates:Union[str, float, int]=1, 
                  ignore_warnings:bool=False, 
                  logger:Callable[[str], str]=print):
         
@@ -67,15 +67,15 @@ class ModelCheckpoint(Callback):
         
         if isinstance(self.num_candidates, str):
             if self.num_candidates != "all":
-                raise ValueError(f"'num_candidates' can be a string, but only with 1 value: 'all', but given '{self.num_candidates}'")
+                raise ValueError(f"`num_candidates` can be a string, but only with 1 value: 'all', but given '{self.num_candidates}'")
         else:
             if self.num_candidates < 0:
                 if not self.ignore_warnings:
-                    warnings.warn(f"Parameter 'num_candidates' is lower than 0, so it will be setted to 0 (no saving checkpoints during training).")
+                    warnings.warn(f"`num_candidates` is lower than 0, so it will be setted to 0 (no saving checkpoints during training).")
                 self.num_candidates = 0
             elif self.num_candidates == 0:
                 if not self.ignore_warnings:
-                    warnings.warn(f"Parameter 'num_candidates' was setted to '0', which means that no saving checkpoints during training.")
+                    warnings.warn(f"`num_candidates` was setted to '0', which means that no saving checkpoints during training.")
         
         
         if not os.path.exists(self.directory):
