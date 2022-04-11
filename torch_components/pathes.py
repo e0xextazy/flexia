@@ -22,7 +22,7 @@ class Pathes(Configuration):
         
         for k, v in self.attributes.items():
             if not os.path.exists(v):
-                warnings.warn(f"Attribute `{k}` path is not found. Correct it to avoid further exceptions.")
+                warnings.warn(f"`{k}` path is not found. Correct it to avoid further exceptions.")
 
     def __str__(self) -> str:
         attributes_string = ", ".join([f"{k}={v}" for k, v in self.attributes.items()])
