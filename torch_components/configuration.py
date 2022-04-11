@@ -23,7 +23,7 @@ class Configuration:
         return list(self.__attributes.keys())
                 
     def __getattr__(self, attribute:str) -> Any:
-        if attribute not in self.attributes:
+        if attribute not in self.__attributes:
             attributes_names = self.get_attributes_names()
             raise ValueError(f"Given attribute `{attribute}` is not setted in Configuration. Choose one of {attributes_names}.")
         
@@ -63,6 +63,9 @@ class Configuration:
         
     def get(self, attribute:str, default:Any) -> Any:
         return self.__attributes.get(attribute, default)
+
+    def to_dict(self):
+        return self.__attributes
 
 
     __repr__ = __str__
