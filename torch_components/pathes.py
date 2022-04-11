@@ -18,14 +18,14 @@ class Pathes(Configuration):
         if len(args) != 0:
             raise ValueError(f"You must put attributes in format key=value.")
 
-        self.attributes = Dict(kwargs) if is_addict_available() else kwargs 
+        self.__attributes = Dict(kwargs) if is_addict_available() else kwargs 
         
-        for k, v in self.attributes.items():
+        for k, v in self.__attributes.items():
             if not os.path.exists(v):
                 warnings.warn(f"`{k}` path is not found. Correct it to avoid further exceptions.")
 
     def __str__(self) -> str:
-        attributes_string = ", ".join([f"{k}={v}" for k, v in self.attributes.items()])
+        attributes_string = ", ".join([f"{k}={v}" for k, v in self.__attributes.items()])
         return f"Pathes({attributes_string})"
 
     __repr__ = __str__
