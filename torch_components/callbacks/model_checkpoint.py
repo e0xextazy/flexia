@@ -1,4 +1,3 @@
-import sched
 import torch
 from torch import nn
 from torch.optim import Optimizer
@@ -22,7 +21,7 @@ class ModelCheckpoint(Callback):
         directory: str - directory, where futher checkpoints will be saved. Default: './'.
         overwriting: bool - if True, the `directory` will be overwrited (all files and folders will be deleted), if `directory` does not exists, ModelCheckpoint will make itself. Default: False.
         filename_format: str - format of checkpoints' filename.
-        candidates: Union[int, float, str] - the number of candidates (checkpoints), that will be left after training. Default: 1.
+        num_candidates: Union[int, float, str] - the number of candidates (checkpoints), that will be left after training. Default: 1.
         ignore_warnings: bool - if True the further warnings will be ignored. Default: False.
         logger: Callable[[str], str] - logging method. Default: print.
             
@@ -38,7 +37,7 @@ class ModelCheckpoint(Callback):
                                        mode="max", 
                                        delta=0.01, 
                                        filename_format="awesome_checkpoint_{step}.pth", 
-                                       candidates=3, 
+                                       num_candidates=3, 
                                        ignore_warnings=True)
     
     """
@@ -49,7 +48,7 @@ class ModelCheckpoint(Callback):
                  directory:str="./", 
                  overwriting:bool=False, 
                  filename_format:str="checkpoint_{step}_{value}.pth", 
-                 candidates:Union[str, float, int]="all", 
+                 num_candidates:Union[str, float, int]="all", 
                  ignore_warnings:bool=False, 
                  logger:Callable[[str], str]=print):
         
@@ -60,23 +59,23 @@ class ModelCheckpoint(Callback):
         self.directory = directory
         self.overwriting = overwriting
         self.filename_format = filename_format
-        self.candidates = candidates
+        self.num_candidates = num_candidates
         self.ignore_warnings = ignore_warnings
         self.logger = logger
         
         self.best_value, *_ = get_mode_values(self.mode)
         
-        if isinstance(self.candidates, str):
-            if self.candidates != "all":
-                raise ValueError(f"'candidates' can be a string, but only with 1 value: 'all', but given '{self.candidates}'")
+        if isinstance(self.num_candidates, str):
+            if self.num_candidates != "all":
+                raise ValueError(f"'num_candidates' can be a string, but only with 1 value: 'all', but given '{self.num_candidates}'")
         else:
-            if self.candidates < 0:
+            if self.num_candidates < 0:
                 if not self.ignore_warnings:
-                    warnings.warn(f"Parameter 'candidates' is lower than 0, so it will be setted to 0 (no saving checkpoints during training).")
-                self.candidates = 0
-            elif self.candidates == 0:
+                    warnings.warn(f"Parameter 'num_candidates' is lower than 0, so it will be setted to 0 (no saving checkpoints during training).")
+                self.num_candidates = 0
+            elif self.num_candidates == 0:
                 if not self.ignore_warnings:
-                    warnings.warn(f"Parameter 'candidates' was setted to '0', which means that no saving checkpoints during training.")
+                    warnings.warn(f"Parameter 'num_candidates' was setted to '0', which means that no saving checkpoints during training.")
         
         
         if not os.path.exists(self.directory):
@@ -104,8 +103,8 @@ class ModelCheckpoint(Callback):
             if not self.ignore_warnings:
                 warnings.warn(f"Seems that 'filename_format' is not unique, maybe will be overwrited some useful checkpoints during training.")
             
-            if not isinstance(self.candidates, str):
-                if self.candidates > 1:
+            if not isinstance(self.num_candidates, str):
+                if self.num_candidates > 1:
                     if not self.ignore_warnings:
                         warnings.warn(f"When 'filename_format' is not unique, number of candidates does not affect anything.")
             
@@ -176,9 +175,9 @@ class ModelCheckpoint(Callback):
         """
         Deleted not selected candidates.
         """
-        if self.candidates != "all":
-            if len(self.all_candidates) >= self.candidates:
-                selected_candidates = self.all_candidates[-self.candidates:]
+        if self.num_candidates != "all":
+            if len(self.all_candidates) >= self.num_candidates:
+                selected_candidates = self.all_candidates[-self.num_candidates:]
                 deleted_candidates = 0
                 for candidate in self.all_candidates:
                     if candidate not in selected_candidates:
@@ -189,7 +188,7 @@ class ModelCheckpoint(Callback):
 
                         deleted_candidates += 1
                 
-                self.all_candidates = self.all_candidates[-self.candidates:]
+                self.all_candidates = self.all_candidates[-self.num_candidates:]
                 self.logger(f"Deleted {deleted_candidates} candidates from '{self.directory}'.")
                 
             
@@ -276,7 +275,7 @@ class ModelCheckpoint(Callback):
         delta_value = get_delta_value(value=value, delta=self.delta, mode=self.mode)
 
         is_saved = False
-        if compare_values(value=delta_value, other=self.best_value, mode=self.mode) and self.candidates != 0:
+        if compare_values(value=delta_value, other=self.best_value, mode=self.mode) and self.num_candidates != 0:
             checkpoint_filename = self.format_filename(value=value, step=step)
             checkpoint_path = os.path.join(self.directory, checkpoint_filename)
             
@@ -305,6 +304,6 @@ class ModelCheckpoint(Callback):
         return is_saved
 
     def __str__(self) -> str:
-        return f"ModelCheckpoint(mode='{self.mode}', delta={self.delta}, directory='{self.directory}', overwriting={self.overwriting}, filename_format='{self.filename_format}', candidates={self.candidates}, ignore_warnings={self.ignore_warnings})"
+        return f"ModelCheckpoint(mode='{self.mode}', delta={self.delta}, directory='{self.directory}', overwriting={self.overwriting}, filename_format='{self.filename_format}', num_candidates={self.num_candidates}, ignore_warnings={self.ignore_warnings})"
 
     __repr__ = __str__
