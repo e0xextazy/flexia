@@ -53,7 +53,7 @@ class Configuration:
             
         return self
 
-    def __dict__(self):
+    def to_dict(self) -> dict:
         return self.attributes
 
     def __str__(self) -> str:
