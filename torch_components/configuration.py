@@ -53,7 +53,9 @@ class Configuration:
             
         return self
 
-    
+    def __dict__(self):
+        return self.attributes
+
     def __str__(self) -> str:
         attributes_string = ", ".join([f"{k}={v}" for k, v in self.attributes.items()])
         return f"Configuration({attributes_string})"
