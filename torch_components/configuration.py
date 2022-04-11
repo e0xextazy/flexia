@@ -15,24 +15,25 @@ class Configuration:
     def __init__(self, *args, **kwargs:dict) -> None:
         if len(args) != 0:
             raise ValueError(f"You must put attributes in format key=value.")
+        
+        self.__attributes = Dict(kwargs) if is_addict_available() else kwargs 
 
-        self.attributes = Dict(kwargs) if is_addict_available() else kwargs 
 
     def get_attributes_names(self) -> list:
-        return list(self.attributes.keys())
+        return list(self.__attributes.keys())
                 
     def __getattr__(self, attribute:str) -> Any:
         if attribute not in self.attributes:
             attributes_names = self.get_attributes_names()
             raise ValueError(f"Given attribute `{attribute}` is not setted in Configuration. Choose one of {attributes_names}.")
         
-        return self.attributes[attribute]
+        return self.__attributes[attribute]
     
     def __setitem__(self, attribute:str, value:Any) -> None:
-        self.attributes[attribute] = value
+        self.__attributes[attribute] = value
     
     def to_json_string(self) -> str:
-        return json.dumps(self.attributes)
+        return json.dumps(self.__attributes)
     
     def to_json(self, path:str) -> str:
         with open(path, "w", encoding="utf-8") as file:
@@ -49,22 +50,19 @@ class Configuration:
             data = self.from_json_string(file.read())
         
         for k, v in data.items():
-            self.attributes[k] = v
+            self.__attributes[k] = v
             
         return self
 
-    def to_dict(self) -> dict:
-        return self.attributes
-
     def __str__(self) -> str:
-        attributes_string = ", ".join([f"{k}={v}" for k, v in self.attributes.items()])
+        attributes_string = ", ".join([f"{k}={v}" for k, v in self.__attributes.items()])
         return f"Configuration({attributes_string})"
     
     def __contains__(self, attribute:str):
-        return attribute in self.attribute
+        return attribute in self.__attributes
         
     def get(self, attribute:str, default:Any) -> Any:
-        return self.attributes.get(attribute, default)
+        return self.__attributes.get(attribute, default)
 
 
     __repr__ = __str__
