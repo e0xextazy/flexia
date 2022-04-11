@@ -60,5 +60,9 @@ class Configuration:
         attributes_string = ", ".join([f"{k}={v}" for k, v in self.attributes.items()])
         return f"Configuration({attributes_string})"
     
+    def __contains__(self, attribute):
+        return attribute in self.attributes
+
+
     __repr__ = __str__
     __getitem__ = __getattr__
