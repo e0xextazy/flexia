@@ -1,6 +1,10 @@
 import json
 from typing import Any
 from addict import Dict
+from .import_utils import is_addict_available
+
+if is_addict_available():
+    from addict import Dict
 
 
 class Configuration:
@@ -12,7 +16,7 @@ class Configuration:
         if len(args) != 0:
             raise ValueError(f"You must put attributes in format key=value.")
 
-        self.attributes = Dict(kwargs)
+        self.attributes = Dict(kwargs) if is_addict_available() else kwargs 
 
     def get_attributes_names(self) -> list:
         return list(self.attributes.keys())

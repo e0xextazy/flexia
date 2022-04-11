@@ -1,3 +1,4 @@
+import sched
 import torch
 from torch import nn
 from torch.optim import Optimizer
@@ -211,7 +212,12 @@ class ModelCheckpoint(Callback):
         return filename
         
     
-    def create_checkpoint(self, value:Union[torch.Tensor, float, int], model:nn.Module, optimizer:Optional[Optimizer]=None, scheduler:Optional[_LRScheduler]=None, step:Optional[int]=None) -> dict:
+    def create_checkpoint(self, 
+                          value:Union[torch.Tensor, float, int], 
+                          model:nn.Module, 
+                          optimizer:Optional[Optimizer]=None, 
+                          scheduler:Optional[_LRScheduler]=None, 
+                          step:Optional[int]=None) -> dict:
         """
         Creates checkpoints dictionary for further saving.
         
@@ -246,7 +252,12 @@ class ModelCheckpoint(Callback):
         return checkpoint
         
         
-    def __call__(self, value:Union[torch.Tensor, float, int], model:nn.Module, optimizer:Optional[Optimizer]=None, scheduler:Optional[_LRScheduler]=None, step:Optional[int]=None) -> bool:
+    def __call__(self, 
+                 value:Union[torch.Tensor, float, int], 
+                 model:nn.Module, 
+                 optimizer:Optional[Optimizer]=None, 
+                 scheduler:Optional[_LRScheduler]=None, 
+                 step:Optional[int]=None) -> bool:
         """
         Inputs:
             value: Union[torch.Tensor, float, int] - monitored value.
@@ -292,8 +303,7 @@ class ModelCheckpoint(Callback):
         self.step = step
         
         return is_saved
-    
-    
+
     def __str__(self) -> str:
         return f"ModelCheckpoint(mode='{self.mode}', delta={self.delta}, directory='{self.directory}', overwriting={self.overwriting}, filename_format='{self.filename_format}', candidates={self.candidates}, ignore_warnings={self.ignore_warnings})"
 
