@@ -136,7 +136,7 @@ def get_batch(loader:DataLoader) -> Any:
     return batch
 
 
-def get_scheduler(name:str, parameters:Any, optimizer:_LRScheduler) -> _LRScheduler:
+def get_scheduler(name:str, parameters:Any, optimizer:_LRScheduler, from_transformers:bool=False) -> _LRScheduler:
     """
     Returns scheduler with given name and parameters. 
     If failed to import from PyTorch, the function will try to import from HuggingFace Transformers library (if available).
@@ -146,7 +146,10 @@ def get_scheduler(name:str, parameters:Any, optimizer:_LRScheduler) -> _LRSchedu
     """
 
     try:
-        instance = getattr(lr_scheduler, name)
+        if not from_transformers:
+            instance = getattr(lr_scheduler, name)
+        else:
+            raise AttributeError()
     except AttributeError as exception:
         if is_transformers_available():
             instance = getattr(transformers, name)
@@ -157,7 +160,7 @@ def get_scheduler(name:str, parameters:Any, optimizer:_LRScheduler) -> _LRSchedu
     return scheduler
 
 
-def get_optimizer(name:str, parameters:Any, model_parameters:Any) -> Optimizer:
+def get_optimizer(name:str, parameters:Any, model_parameters:Any, from_transformers:bool=False) -> Optimizer:
     """
     Returns optimizer with given name and parameters. 
     If failed to import from PyTorch, the function will try to import from HuggingFace Transformers library.
@@ -167,7 +170,10 @@ def get_optimizer(name:str, parameters:Any, model_parameters:Any) -> Optimizer:
     """
 
     try:
-        instance = getattr(optim, name)
+        if not from_transformers:
+            instance = getattr(optim, name)
+        else:
+            raise AttributeError()
     except AttributeError as exception:
         if is_transformers_available():
             instance = getattr(transformers, name)
