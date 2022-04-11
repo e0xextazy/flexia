@@ -34,7 +34,7 @@ class Configuration:
     def to_json_string(self) -> str:
         return json.dumps(self.attributes)
     
-    def to_json(self, path:str="configuration.json") -> str:
+    def to_json(self, path) -> str:
         with open(path, "w", encoding="utf-8") as file:
             data = self.to_json_string()
             file.write(data)
@@ -44,7 +44,7 @@ class Configuration:
     def from_json_string(self, string:str) -> dict:
         return json.loads(string)
     
-    def from_json(self, path:str="configuration.json") -> "Configuration":
+    def from_json(self, path) -> "Configuration":
         with open(path, "r", encoding="utf-8") as file:
             data = self.from_json_string(file.read())
         
