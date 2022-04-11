@@ -10,5 +10,5 @@ def is_addict_available():
     try:
         import addict
         return True
-    except:
+    except ModuleNotFoundError:
         return False
