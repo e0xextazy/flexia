@@ -1,9 +1,5 @@
-from collections import UserDict
 import json
-from typing import Any
-from addict import Dict
-from .import_utils import is_addict_available
-from addict import Dict
+from .third_party.addict import Dict
 
 
 class Configuration(Dict):
