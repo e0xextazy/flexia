@@ -1,7 +1,6 @@
 from typing import Union, Callable
 from datetime import timedelta, datetime
 import warnings
-from pytimeparse.timeparse import timeparse
 from .callback import Callback
 from ..third_party.pytimeparse.timeparse import timeparse
 
