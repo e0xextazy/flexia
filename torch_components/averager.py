@@ -17,6 +17,7 @@ class Averager:
         self.sum = sum_
         self.count = count
         self.value = value
+        self.__calls = 0
         
     def state_dict(self) -> dict:
         state = {
@@ -46,16 +47,45 @@ class Averager:
         self.count = 0
         self.value = None
         
+
+    def sum_over_dictionary(self, input:dict, other:dict) -> dict:
+        for k, v in other.items():
+            input[k] += v
+        
+        return input
+
+    def average_over_dictionary(self, input:dict, n:int=1) -> dict:
+        for k in input:
+            input[k] /= n
+
+        return input
+
     
-    def update(self, value:Union[int, float], n:int=1) -> None:
+    def update(self, value:Union[int, float, dict], n:int=1) -> None:
         """
         Updates statistics (average, count and sum).
         """
-        
-        self.value = value
-        self.sum += value * n
-        self.count += n
-        self.average = self.sum / self.count
+
+        if isinstance(value, dict):
+            if self.__calls == 0:
+                self.sum = value
+                self.average = value
+            else:
+                self.sum = self.sum_over_dictionary(self.sum, value)
+
+
+            self.value = value
+            self.count += n
+
+            self.average = self.average_over_dictionary(self.sum, n=self.count)
+
+        else:
+            self.value = value
+            self.sum += value * n
+            self.count += n
+            self.average = self.sum / self.count
+
+        self.__calls += 1
         
     
     def __str__(self) -> str:
