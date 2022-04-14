@@ -176,7 +176,7 @@ class ModelCheckpoint(Callback):
         Deleted not selected candidates.
         """
         if self.num_candidates != "all":
-            if len(self.all_candidates) >= self.num_candidates and self.is_filename_format_unique():
+            if len(self.all_candidates) >= self.num_candidates and self.is_filename_format_unique(self.filename_format):
                 selected_candidates = self.all_candidates[-self.num_candidates:]
                 deleted_candidates = 0
                 for candidate in self.all_candidates:
