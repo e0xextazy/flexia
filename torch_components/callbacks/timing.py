@@ -5,9 +5,9 @@ from .callback import Callback
 from ..third_party.pytimeparse.timeparse import timeparse
 
 
-class Timer(Callback):
+class Timing(Callback):
     """
-    Timer stops training when the duration of the training stage reaches a certain limit of time. 
+    Timing stops training when the duration of the training stage reaches a certain limit of time. 
     It is useful when you are using time-limit sources, e.g. Google Colab or Kaggle Kernels/Notebooks.
     
     Inputs:
@@ -96,6 +96,6 @@ class Timer(Callback):
         return self.is_stopped
     
     def __str__(self):
-        return f"Timer(duration='{self.duration}', ignore_warnings={self.ignore_warnings}, duration_separator='{self.duration_separator}')"
+        return f"Timing(duration='{self.duration}', ignore_warnings={self.ignore_warnings}, duration_separator='{self.duration_separator}')"
     
     __repr__ = __str__

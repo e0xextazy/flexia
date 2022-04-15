@@ -148,15 +148,17 @@ def get_scheduler(name:str, parameters:Any, optimizer:_LRScheduler, from_transfo
     try:
         if not from_transformers:
             instance = getattr(lr_scheduler, name)
+            scheduler = instance(optimizer=optimizer, **parameters)
         else:
             raise AttributeError()
+
     except AttributeError as exception:
         if is_transformers_available():
             instance = getattr(transformers, name)
+            scheduler = instance(optimizer=optimizer, **parameters)
         else:
             raise AttributeError(f"Given scheduler's name is not provided.")
  
-    scheduler = instance(optimizer=optimizer, **parameters)
     return scheduler
 
 
@@ -172,13 +174,14 @@ def get_optimizer(name:str, parameters:Any, model_parameters:Any, from_transform
     try:
         if not from_transformers:
             instance = getattr(optim, name)
+            optimizer = instance(params=model_parameters, **parameters)
         else:
             raise AttributeError()
     except AttributeError as exception:
         if is_transformers_available():
             instance = getattr(transformers, name)
+            optimizer = instance(params=model_parameters, **parameters)
         else:
             raise AttributeError(f"Given optimizer's name is not provided.")
 
-    optimizer = instance(params=model_parameters, **parameters)
     return optimizer
