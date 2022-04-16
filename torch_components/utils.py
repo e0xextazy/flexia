@@ -66,6 +66,27 @@ def to_tensors(*inputs:Any) -> tuple:
     return tuple(map(lambda input: to_tensor(input), inputs))
 
 
+def to_list(input:Any) -> list:
+    if not isinstance(input, list):
+        if isinstance(input, torch.Tensor):
+            input = input.detach().to("cpu").tolist()
+        elif isinstance(input, np.ndarray):
+            input = input.tolist()
+        else:
+            try:
+                input = list(input)
+            except TypeError:
+                input = list([input])
+            
+    return input
+
+
+def to_lists(*inputs:Any) -> tuple:
+    """
+    Converts all inputs to torch.Tensor.
+    """
+    return tuple(map(lambda input: to_list(input), inputs))
+
 
 def load_checkpoint(path:str, 
                     model:nn.Module, 
