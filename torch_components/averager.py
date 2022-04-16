@@ -6,8 +6,7 @@ class Averager:
                 average:Union[int, float, dict]=0, 
                 sum_:Union[int, float, dict]=0, 
                 count:int=0, 
-                value:Optional[Union[float, int, dict]]=None, 
-                best_options={"mode": "min", "delta": 0.0, "best_value": None}):
+                value:Optional[Union[float, int, dict]]=None):
         """
         Computes statistics (sum, average, and count) for given values. 
         
@@ -23,8 +22,6 @@ class Averager:
         self.count = count
         self.value = value
         self.__calls = 0
-
-        self.best_options = best_options
         
     def state_dict(self) -> dict:
         state = {
