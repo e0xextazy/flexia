@@ -52,9 +52,9 @@ class Averager:
         self.value = None
         
 
-    def sum_over_dictionary(self, input:dict, other:dict) -> dict:
+    def sum_over_dictionary(self, input:dict, other:dict, n:int=1) -> dict:
         for k, v in other.items():
-            input[k] += v
+            input[k] += v * n
         
         return input
 
@@ -75,13 +75,12 @@ class Averager:
                 self.sum = value
                 self.average = value
             else:
-                self.sum = self.sum_over_dictionary(self.sum, value)
+                self.sum = self.sum_over_dictionary(self.sum, value, n=n)
+                self.average = self.average_over_dictionary(self.sum, n=self.count)
 
 
             self.value = value
             self.count += n
-
-            self.average = self.average_over_dictionary(self.sum, n=self.count)
 
         else:
             self.value = value
