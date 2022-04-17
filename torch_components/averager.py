@@ -1,4 +1,5 @@
 from typing import Union, Optional
+from copy import deepcopy
 
 
 class Averager:
@@ -53,12 +54,14 @@ class Averager:
         
 
     def sum_over_dictionary(self, input:dict, other:dict, n:int=1) -> dict:
+        input = deepcopy(input)
         for k, v in other.items():
             input[k] += v * n
         
         return input
 
     def average_over_dictionary(self, input:dict, n:int=1) -> dict:
+        input = deepcopy(input)
         for k in input:
             input[k] /= n
 
@@ -71,16 +74,15 @@ class Averager:
         """
 
         if isinstance(value, dict):
+            self.count += n
             if self.__calls == 0:
-                self.sum = value
-                self.average = value
+                self.sum = self.sum_over_dictionary(value, value, n=n-1)
+                self.average = self.average_over_dictionary(self.sum, n=self.count)
             else:
                 self.sum = self.sum_over_dictionary(self.sum, value, n=n)
                 self.average = self.average_over_dictionary(self.sum, n=self.count)
 
-
             self.value = value
-            self.count += n
 
         else:
             self.value = value
