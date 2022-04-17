@@ -15,4 +15,5 @@ def is_wandb_available():
     
 def wandb_run_exists():
     if is_wandb_available(): 
+        import wandb
         return wandb.run is not None
