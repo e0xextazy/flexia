@@ -8,11 +8,11 @@ class Timer:
         self.time_format = time_format
         
         self.elapsed_time = timedelta(seconds=0)
-        self.remain_time = None
+        self.remain_time = timedelta(seconds=0)
     
 
     @staticmethod
-    def get_time_from_timedelta(self, delta:timedelta) -> dict:
+    def get_time_from_timedelta(delta:timedelta) -> dict:
         time = {"days": delta.days}
         time["hours"], rem = divmod(delta.seconds, 3600)
         time["minutes"], time["seconds"] = divmod(rem, 60)
@@ -40,13 +40,17 @@ class Timer:
     
 
     @staticmethod
-    def format_time(self, time:timedelta, time_format:str="{hours}:{minutes}:{seconds}") -> str:
+    def format_time(time:timedelta, time_format:str="{hours}:{minutes}:{seconds}") -> str:
         """
         Formats `timedelta` to user's time format.
         """
         time = Timer.get_time_from_timedelta(time)
         return time_format.format(**time)
     
+    @staticmethod
+    def now():
+        return datetime.now()
+
     @property
     def elapsed(self) -> str:
         """
@@ -73,8 +77,7 @@ class Timer:
             remain: str - remain time.
         """
         
-        now = datetime.now()
-        self.elapsed_time = now - self.start
+        self.elapsed_time = Timer.now() - self.start
         elapsed_seconds = self.elapsed_time.total_seconds()        
         total_seconds = timedelta(seconds=round(elapsed_seconds / fraction))
         self.remain_time = abs(total_seconds - self.elapsed_time)
