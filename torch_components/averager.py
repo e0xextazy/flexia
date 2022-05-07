@@ -35,7 +35,7 @@ class Averager:
         
         return state
     
-    def load_state_dict(self, state_dict) -> "Averager":
+    def load_state_dict(self, state_dict:dict) -> "Averager":
         self.average = state_dict["average"]
         self.sum = state_dict["sum"]
         self.count = state_dict["count"]
@@ -95,7 +95,6 @@ class Averager:
 
         self.__calls += 1
         
-    
     def __str__(self) -> str:
         return f"Averager(average={self.average}, sum={self.sum}, count={self.count}, value={self.value})"
     
