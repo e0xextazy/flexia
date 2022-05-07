@@ -1,5 +1,6 @@
 from typing import Union, Optional
 from copy import deepcopy
+from .third_party.addict import Dict
 
 
 class Averager:
@@ -82,7 +83,9 @@ class Averager:
                 self.sum = self.sum_over_dictionary(self.sum, value, n=n)
                 self.average = self.average_over_dictionary(self.sum, n=self.count)
 
-            self.value = value
+            self.sum = Dict(self.sum)
+            self.average = Dict(self.average)
+            self.value = Dict(value)
 
         else:
             self.value = value
