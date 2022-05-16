@@ -41,7 +41,14 @@ def get_lr(optimizer:Optimizer, only_last:bool=False, key="lr") -> Union[int, li
     if not isinstance(optimizer, Optimizer):
         raise TypeError(f"The given `optimizer` type is not supported, it must be instance of Optimizer.")
     
-    lrs = [param_group[key] for param_group in optimizer.param_groups]
+    lrs = []
+    for param_group in optimizer.param_groups:
+        if key not in param_group:
+            key = "lr"
+        
+        lr = param_group[key]
+        lrs.append(lr)
+        
     return lrs[-1] if only_last else lrs
 
 
