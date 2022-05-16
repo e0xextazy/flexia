@@ -33,7 +33,7 @@ def seed_everything(seed:Optional[int]=None) -> int:
     return seed
     
 
-def get_lr(optimizer:Optimizer, only_last:bool=False, key="lr") -> Union[int, list]:
+def get_lr(optimizer:Optimizer, only_last:bool=False) -> Union[int, list]:
     """
     Returns optimizer's leearning rates for each group.
     """
@@ -41,7 +41,7 @@ def get_lr(optimizer:Optimizer, only_last:bool=False, key="lr") -> Union[int, li
     if not isinstance(optimizer, Optimizer):
         raise TypeError(f"The given `optimizer` type is not supported, it must be instance of Optimizer.")
     
-    lrs = [param_group[key] for param_group in optimizer.param_groups]
+    lrs = [param_group["lr"] for param_group in optimizer.param_groups]
     return lrs[-1] if only_last else lrs
 
 

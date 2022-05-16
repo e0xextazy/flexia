@@ -1,4 +1,3 @@
 pytimeparse==1.1.8
-addict==2.4.0
 numpy==1.19.5
 torch==1.8.1+cu111
