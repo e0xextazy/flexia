@@ -9,7 +9,7 @@ AUTHOR = "Vadim Irtlach"
 AUTHOR_EMAIL = "vadimirtlach@gmail.com"
 URL = "https://github.com/vad13irt/torch-components"
 REQUIRED = ["pytimeparse", "numpy", "torch"]
-PACKAGES = find_packages("torch_components/*")
+PACKAGES = find_packages("torch_components/", "torch_components/*")
 
 DIRECTORY = os.getcwd()
 README_PATH = os.path.join(DIRECTORY, "README.md")
