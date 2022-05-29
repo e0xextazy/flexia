@@ -1,2 +1,5 @@
 __pycache__
 torch_components/monitors
+torch_components.egg-info
+dist
+build

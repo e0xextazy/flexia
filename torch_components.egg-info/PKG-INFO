@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: torch-components
-Version: 1.0.1
+Version: 1.0.3
 Summary: Torch Components is an open-source high-level API above the PyTorch framework. It provides functionality, which can be easily inserted into any PyTorch training and validation scripts.
 Home-page: https://github.com/vad13irt/torch-components
 Author: Vadim Irtlach

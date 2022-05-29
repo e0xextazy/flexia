@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 NAME = "torch-components"
 DESCRIPTION = "Torch Components is an open-source high-level API above the PyTorch framework. It provides functionality, which can be easily inserted into any PyTorch training and validation scripts."
-VERSION = "1.0.1"
+VERSION = "1.0.3"
 AUTHOR = "Vadim Irtlach"
 AUTHOR_EMAIL = "vadimirtlach@gmail.com"
 URL = "https://github.com/vad13irt/torch-components"
