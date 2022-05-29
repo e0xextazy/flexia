@@ -4,14 +4,9 @@ Torch Components is an open-source high-level API above the PyTorch framework. I
 
 # Installation
 
-```
-git clone -q https://github.com/vad13irt/torch-components.git
-```
 
 ```
-
 >>> pip install torch-components
-
 ```
 
 # API Reference
