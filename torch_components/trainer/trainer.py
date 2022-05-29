@@ -6,10 +6,11 @@ from typing import Optional, Union, Any, Tuple
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from datetime import timedelta
-from .utils import SchedulingStrategy, ValidationStrategy, wandb_run_exists, get_lr
+from .utils import SchedulingStrategy, ValidationStrategy
 from ..timer import Timer
 from ..averager import Averager
-from ..utils import is_wandb_available
+from ..import_utils import is_wandb_available, wandb_run_exists
+from ..utils import get_lr
 
 
 if is_wandb_available():
