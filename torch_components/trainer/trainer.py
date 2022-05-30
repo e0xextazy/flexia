@@ -1,3 +1,4 @@
+from optparse import Option
 import torch
 from torch import nn, optim
 from torch.cuda.amp import GradScaler, autocast
@@ -6,21 +7,27 @@ from typing import Optional, Union, Any, Tuple
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from datetime import timedelta
+from collections import OrderedDict
+
 from .utils import SchedulingStrategy, ValidationStrategy
 from ..timer import Timer
 from ..averager import Averager
-from ..import_utils import is_wandb_available, wandb_run_exists
+from ..import_utils import is_wandb_available, wandb_run_exists, is_deepspeed_available
 from ..utils import get_lr
 
 
 if is_wandb_available():
     import wandb
 
+if is_deepspeed_available():
+    import deepspeed
+
 
 class Trainer:
     def __init__(self, 
                  model:nn.Module, 
-                 optimizer:optim.Optimizer, 
+                 optimizer:optim.Optimizer,
+                 model_parameters:Optional["OrderedDict"]=None, 
                  teacher_model:Optional[nn.Module]=None,
                  scheduler:Optional[lr_scheduler._LRScheduler]=None, 
                  scheduling_strategy:str="step", 
@@ -40,6 +47,7 @@ class Trainer:
         
         self.model = model
         self.teacher_model = teacher_model
+        self.model_parameters = model_parameters
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.scheduling_strategy = SchedulingStrategy(scheduling_strategy)
@@ -78,9 +86,28 @@ class Trainer:
         else:
             self.device = torch.device(self.device)
                 
-        if self.gradient_scaling and self.scaler is None:
+        if self.gradient_scaling and self.scaler is None and self.amp:
             self.scaler = GradScaler()
-    
+
+
+        self.model_parameters = self.model.parameters() if self.model_parameters is None else self.model_parameters
+
+        self.__deepspeed = is_deepspeed_available() and deepspeed
+
+        if self.__deepspeed:
+            self.deepspeed_config = deepspeed.config.Config(gradient_accumulation_steps=self.gradient_accumulation_steps, 
+                                                            verbose=False, 
+                                                            fp16=self.amp, 
+                                                            train_batch_size=None)
+
+            self.model, self.optimizer, _, self.scheduler = deepspeed.initialize(model=self.model, 
+                                                                                 ptimizer=self.optimizer, 
+                                                                                 model_parameters=self.model_parameters, 
+                                                                                 lr_scheduler=self.scheduler,
+                                                                                 dist_init_required=False, 
+                                                                                 config=self.deepspeed_config)
+
+
         self.best_validation_loss, self.best_validation_metrics, self.best_validation_outputs = None, None, None
         self.lr_key = "lr"
         self.passed_steps = 0
@@ -106,14 +133,15 @@ class Trainer:
               return_validation_outputs:bool=True) -> tuple:
         
         total_time = timedelta(seconds=0)
+        is_wandb = wandb_run_exists() and "wandb" in self.logger
+
         self.model.to(self.device)
         if self.teacher_model is not None: 
             self.teacher_model.to(self.device)
         
         if self.validation_strategy == ValidationStrategy.EPOCH:
             self.validation_steps = len(train_loader) * self.validation_steps
-
-        if wandb_run_exists() and "wandb" in self.logger:
+        if is_wandb:
             print(f"Weights & Biases Run: {wandb.run.get_url()}", end="\n"*2)
 
         train_loss, train_metrics = Averager(), Averager()
@@ -133,6 +161,9 @@ class Trainer:
                 step_timer = Timer(self.time_format)
                 pseudo_batch = None if pseudo_loader is None else next(iter(pseudo_loader))
                 
+                if self.__deepspeed:
+                    self.model.step()
+
                 batch_loss, batch_metrics = self.training_step(batch=batch, 
                                                                overall_loss=epoch_train_loss.average, 
                                                                overall_metrics=epoch_train_metrics.average,
@@ -153,7 +184,7 @@ class Trainer:
                 step_seconds = step_timer.elapsed_time.total_seconds()
                 sample_seconds = step_seconds / batch_size
 
-                if wandb_run_exists() and "wandb" in self.logger:
+                if is_wandb:
                     logs = {"train/seconds vs step": step_seconds, 
                             "train/seconds vs sample": sample_seconds}
 
@@ -164,7 +195,7 @@ class Trainer:
                 train_metrics.update(batch_metrics, n=batch_size)
                 epoch_train_metrics.update(batch_metrics, n=batch_size)
 
-                if wandb_run_exists() and "wandb" in self.logger:
+                if is_wandb:
                     logs = {"train/loss": train_loss.average, 
                             "train/loss vs batch": batch_loss, 
                             "train/loss vs epoch": epoch_train_loss.average,
@@ -207,13 +238,13 @@ class Trainer:
                         validation_step_seconds = validation_seconds / validation_steps
                         validation_sample_seconds = validation_step_seconds / validation_batch_size
 
-                        if wandb_run_exists() and "wandb" in self.logger:
+                        if is_wandb:
                             logs = {"validation/seconds vs step": validation_step_seconds, 
                                     "validation/seconds vs sample": validation_sample_seconds}
 
                             wandb.log(logs, step=self.passed_steps)
 
-                        if wandb_run_exists() and "wandb" in self.logger:
+                        if is_wandb:
                             logs = {"validation/loss": validation_loss, 
                                     "train/loss vs validation steps": epoch_train_loss.average}
 
@@ -248,7 +279,7 @@ class Trainer:
             epoch_elapsed_seconds = timer.elapsed_time.total_seconds()
             total_time += timedelta(seconds=epoch_elapsed_seconds)
 
-            if wandb_run_exists() and "wandb" in self.logger:
+            if is_wandb:
                 wandb.log({"epoch": epoch}, step=self.passed_steps)
 
             if "tqdm" in self.logger: train_loader.close()
@@ -273,26 +304,31 @@ class Trainer:
 
         
     def backward_step(self, loss:torch.Tensor) -> torch.Tensor:
-        if self.scaler is not None:
-            self.scaler.scale(loss).backward()
-            self.__is_scaler_called = True
+        if self.__deepspeed:
+            self.model.backward(loss)
         else:
-            loss.backward()
+            if self.scaler is not None and self.amp:
+                self.scaler.scale(loss).backward()
+                self.__is_scaler_called = True
+            else:
+                loss.backward()
         
         return loss
     
-    def optimization_step(self) -> None:                        
-        if self.scaler is not None:
-            self.scaler.step(self.optimizer)
-            self.scaler.update()
-        else:
-            self.optimizer.step()
 
-        self.model.zero_grad()
+    def optimization_step(self) -> None:           
+        if not self.__deepspeed:          
+            if self.scaler is not None and self.amp:
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+            else:
+                self.optimizer.step()
+
+            self.model.zero_grad()
         
 
     def scheduling_step(self, loss:Optional[torch.Tensor]=None, loop:str="training") -> None:
-        if self.scheduler is not None:
+        if self.scheduler is not None and not self.__deepspeed:
             if loop == "validation":
                 if isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau):
                     self.scheduler.step(loss)
@@ -315,7 +351,9 @@ class Trainer:
             targets = self.get_targets(batch)
             metrics = self.calculate_metrics(predictions=outputs, targets=targets, device=self.device)
 
-            loss /= self.gradient_accumulation_steps
+            if self.gradient_accumulation_steps > 1 and not self.__deepspeed:
+                loss /= self.gradient_accumulation_steps
+            
             loss = self.backward_step(loss=loss)
 
             adversarial_loss = self.adversarial_step(batch=batch, 
@@ -348,11 +386,11 @@ class Trainer:
         return loss.detach(), metrics
                 
     def clip_gradients(self) -> None:
-        if self.gradient_norm > 0:
-            if self.scaler is not None and not self.__is_scaler_called:
+        if self.gradient_norm > 0 and self.__deepspeed:
+            if self.scaler is not None and not self.__is_scaler_called and self.amp:
                 self.scaler.unscale_(self.optimizer)
 
-        nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.gradient_norm)
+            nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.gradient_norm)
         
 
     def calculate_loss(self, 

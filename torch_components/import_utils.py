@@ -19,3 +19,11 @@ def wandb_run_exists():
         return wandb.run is not None
     else:
         return False
+
+
+def is_deepspeed_available():
+    try:
+        import deepspeed
+        return True
+    except ModuleNotFoundError:
+        return False
