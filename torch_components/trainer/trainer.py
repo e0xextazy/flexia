@@ -80,6 +80,7 @@ class Trainer:
         if not isinstance(self.gradient_accumulation_steps, int):
             raise TypeError(f"`gradient_accumulation_steps` must be integer type, but given `{type(self.gradient_accumulation_steps)}`")
         
+
         if self.device is None:
             if torch.cuda.is_availabel():
                 self.device = torch.device("cuda")
@@ -87,7 +88,9 @@ class Trainer:
                 self.device = torch.device("cpu")
         else:
             self.device = torch.device(self.device)
-                
+        
+        self.amp = not self.amp == self.deepspeed
+
         if self.gradient_scaling and self.scaler is None and self.amp:
             self.scaler = GradScaler()
 
@@ -96,17 +99,17 @@ class Trainer:
         self.__deepspeed = is_deepspeed_available() and self.deepspeed
 
         if self.__deepspeed:
-            self.deepspeed_config = deepspeed.config.Config(gradient_accumulation_steps=self.gradient_accumulation_steps, 
-                                                            verbose=False, 
-                                                            fp16=self.amp, 
-                                                            train_batch_size=None)
+            self.deepspeed_arguments = {
+                "gradient_accumulation_steps": self.gradient_accumulation_steps, 
+                "fp16": self.amp
+            }
 
             self.model, self.optimizer, _, self.scheduler = deepspeed.initialize(model=self.model, 
                                                                                  ptimizer=self.optimizer, 
                                                                                  model_parameters=self.model_parameters, 
                                                                                  lr_scheduler=self.scheduler,
                                                                                  dist_init_required=False, 
-                                                                                 config=self.deepspeed_config)
+                                                                                 args=self.deepspeed_arguments)
 
 
         self.best_validation_loss, self.best_validation_metrics, self.best_validation_outputs = None, None, None
