@@ -20,7 +20,7 @@ if is_wandb_available():
     import wandb
 
 if is_deepspeed_available():
-    import deepspeed
+    import deepspeed as ds
 
 
 class Trainer:
@@ -104,12 +104,12 @@ class Trainer:
                 "fp16": self.amp
             }
 
-            self.model, self.optimizer, _, self.scheduler = deepspeed.initialize(model=self.model, 
-                                                                                 ptimizer=self.optimizer, 
-                                                                                 model_parameters=self.model_parameters, 
-                                                                                 lr_scheduler=self.scheduler,
-                                                                                 dist_init_required=False, 
-                                                                                 args=self.deepspeed_arguments)
+            self.model, self.optimizer, _, self.scheduler = ds.initialize(model=self.model, 
+                                                                          optimizer=self.optimizer, 
+                                                                          model_parameters=self.model_parameters, 
+                                                                          lr_scheduler=self.scheduler,
+                                                                          dist_init_required=False, 
+                                                                          args=self.deepspeed_arguments)
 
 
         self.best_validation_loss, self.best_validation_metrics, self.best_validation_outputs = None, None, None
