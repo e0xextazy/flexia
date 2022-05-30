@@ -43,7 +43,8 @@ class Trainer:
                  decimals:int=4, 
                  logger:Union[str, list]="print", 
                  epochs:int=1, 
-                 time_format:str="{hours}:{minutes}:{seconds}"):
+                 time_format:str="{hours}:{minutes}:{seconds}", 
+                 deepspeed:bool=False):
         
         self.model = model
         self.teacher_model = teacher_model
@@ -63,7 +64,8 @@ class Trainer:
         self.decimals = decimals
         self.logger = logger
         self.epochs = epochs
-        self.time_format = time_format    
+        self.time_format = time_format   
+        self.deepspeed = deepspeed 
         
         if not (0 < self.epochs):
             raise ValueError(f"`epochs` must be greater than 0, but given {self.epochs}.")
@@ -91,8 +93,7 @@ class Trainer:
 
 
         self.model_parameters = self.model.parameters() if self.model_parameters is None else self.model_parameters
-
-        self.__deepspeed = is_deepspeed_available() and deepspeed
+        self.__deepspeed = is_deepspeed_available() and self.deepspeed
 
         if self.__deepspeed:
             self.deepspeed_config = deepspeed.config.Config(gradient_accumulation_steps=self.gradient_accumulation_steps, 
