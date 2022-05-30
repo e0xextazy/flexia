@@ -108,7 +108,7 @@ class Trainer:
                                                                           optimizer=self.optimizer, 
                                                                           model_parameters=self.model_parameters, 
                                                                           lr_scheduler=self.scheduler,
-                                                                          dist_init_required=False, 
+                                                                          dist_init_required=True, 
                                                                           args=self.deepspeed_arguments)
 
 
