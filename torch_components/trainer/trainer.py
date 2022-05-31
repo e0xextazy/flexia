@@ -89,7 +89,7 @@ class Trainer:
         else:
             self.device = torch.device(self.device)
         
-        self.amp = not self.amp == self.deepspeed
+        #self.amp = not self.amp == self.deepspeed
 
         if self.gradient_scaling and self.scaler is None and self.amp:
             self.scaler = GradScaler()
@@ -115,8 +115,6 @@ class Trainer:
         self.best_validation_loss, self.best_validation_metrics, self.best_validation_outputs = None, None, None
         self.lr_key = "lr"
         self.passed_steps = 0
-        self.__is_scaler_called = False
-    
     
     def __tqdm_loader_wrapper(self, loader:DataLoader, description:str="") -> Any:
         bar_format = "{l_bar} {bar} {n_fmt}/{total_fmt} - remain: {remaining}{postfix}"
@@ -313,7 +311,6 @@ class Trainer:
         else:
             if self.scaler is not None and self.amp:
                 self.scaler.scale(loss).backward()
-                self.__is_scaler_called = True
             else:
                 loss.backward()
         
@@ -394,10 +391,7 @@ class Trainer:
         Applies gradient clipping for model's parameters.
         """
 
-        if self.gradient_norm > 0 and self.__deepspeed:
-            if self.scaler is not None and not self.__is_scaler_called and self.amp:
-                self.scaler.unscale_(self.optimizer)
-
+        if self.gradient_norm > 0 and not self.__deepspeed:
             nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.gradient_norm)
         
 
