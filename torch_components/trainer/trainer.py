@@ -37,15 +37,43 @@ class Trainer:
                  gradient_norm:float=0, 
                  amp:bool=False, 
                  verbose:int=1, 
-                 device:Optional[Union[str, torch.device]]=None, 
+                 device:Optional[Union[str, torch.device]]=torch.device("cpu"), 
                  validation_strategy:str="epoch",
                  validation_steps:int=1, 
                  decimals:int=4, 
                  logger:Union[str, list]="print", 
                  epochs:int=1, 
                  time_format:str="{hours}:{minutes}:{seconds}", 
-                 deepspeed:bool=False):
+                 deepspeed:bool=False) -> None:
         
+        """
+        
+        Inputs:
+
+            model: nn.Module - model to train.
+            optimizer: optim.Optimizer - optimizer, which is used for training, i.e optimizing model's parameters.
+            scheduler: Optional[lr_scheduler._LRScheduler] - scheduler for scheduling learning rate during training. Default: None.
+            scheduling_strategy: str - strategy for calling scheduler's step. Possible values: ["step", "epoch"]. Default: "step".
+            gradient_accumulation_steps: int - number of steps for calling optimizer's step. Default: 1.
+            gradient_scaling:bool - if True, applies scaling for the loss, in order to prevent low gradient in AMP mode. Default: False.
+            scaler:Optional["GradScaler"] - if `gradient_scaling` is True, the provided scaler will do scaling. Default: None.
+            gradient_norm:float - max norm of gradients. Default: 0.
+            amp:bool - if True, the training will use Auto Mixed Precision training, i.e training with half precision (16 bytes). Default: False.
+            verbose:int - number of steps to print the results. Default: 1.
+            device: Optional[Union[str, torch.device]] - device for model and batch's data. Default: torch.device("cpu").
+            validation_strategy:str - strategy for validating model. Possible values: ["step", "epoch"]. Default: "epoch".
+            validation_steps: int - number of steps to validate the model. Default: 1.
+            decimals: int - number of decimals to show the numbers, e.g. loss, metrics, etc. Default: 4.
+            epochs: int - number of epochs. Default: 1.
+            logger: Union[str, list] - logger or loggers for logging training process, it can recieve list or just string of loggers. 
+            Possible values: ["wandb", "print", "tqdm"]. Default: "print".
+            time_format:str - format for printing the elapsed time. Default: "{hours}:{minutes}:{seconds}".
+        
+
+        """
+
+
+
         self.model = model
         self.teacher_model = teacher_model
         #self.model_parameters = model_parameters
@@ -117,6 +145,14 @@ class Trainer:
         self.passed_steps = 0
     
     def __tqdm_loader_wrapper(self, loader:DataLoader, description:str="") -> Any:
+        """
+        Wraps loader into `tqdm` loop.
+
+        Inputs:
+            loader: DataLoader - loader to wrap.
+            description: str - description for `tqdm` loop.
+        """
+
         bar_format = "{l_bar} {bar} {n_fmt}/{total_fmt} - remain: {remaining}{postfix}"
         loader = tqdm(iterable=loader, 
                       total=len(loader),
@@ -317,7 +353,10 @@ class Trainer:
         return loss
     
 
-    def optimization_step(self) -> None:           
+    def optimization_step(self) -> None:     
+        """
+        Applies optimization step.
+        """      
         if not self.__deepspeed:          
             if self.scaler is not None and self.amp:
                 self.scaler.step(self.optimizer)
@@ -329,6 +368,10 @@ class Trainer:
         
 
     def scheduling_step(self, loss:Optional[torch.Tensor]=None, loop:str="training") -> None:
+        """
+        Applies learning rate scheduling.
+        """
+
         if self.scheduler is not None and not self.__deepspeed:
             if loop == "validation":
                 if isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau):
@@ -345,6 +388,10 @@ class Trainer:
                       step:Optional[int]=None, 
                       epoch:Optional[int]=None, 
                       pseudo_batch:Optional[Any]=None) -> Tuple[torch.Tensor, dict]:
+
+        """
+        Applies training step, i.e calculating losses, metrics and returns them for further optimization.
+        """
         
         self.model.train()
         with autocast(enabled=self.amp):
@@ -445,6 +492,10 @@ class Trainer:
                             step:Optional[int]=None, 
                             best_loss:Optional[int]=None, 
                             best_metrics:Optional[dict]=None) -> bool:
+
+        """
+        Saves checkpoints.
+        """
         return True
 
     def pseudo_labeling_step(self, 
@@ -473,6 +524,10 @@ class Trainer:
                         loader:DataLoader, 
                         return_outputs:bool=True, 
                         recalculate_metrics_at_end:bool=True) -> Tuple[Any, dict]:
+
+        """
+        Runs validation loop.
+        """
         
         self.model.eval()
         loss, metrics = Averager(), Averager()
@@ -541,6 +596,10 @@ class Trainer:
 
 
     def format_metrics(self, metrics:dict, sep:str=" - ", add_sep_to_start:bool=True) -> str:
+        """
+        Formats the given dictionary of metrics and retuns it as string.
+        """
+
         if metrics != {}:
             string = sep.join([f"{k}: {v:.{self.decimals}}" for k, v in metrics.items()])
             return sep + string if add_sep_to_start else string 
