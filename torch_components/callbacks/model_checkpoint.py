@@ -5,6 +5,7 @@ from torch.optim.lr_scheduler import _LRScheduler
 import warnings
 import shutil
 import os
+import gc
 from typing import Callable, Union, Optional
 from .callback import Callback
 from .utils import compare_values, get_delta_value, get_mode_values
@@ -298,6 +299,10 @@ class ModelCheckpoint(Callback):
             
             self.__select_candidates()
             is_saved = True
+
+            # removing checkpoint from memory
+            del checkpoint
+            gc.collect()
         
         self.step = step
         

@@ -122,8 +122,8 @@ def load_checkpoint(path:str,
 
         if custom_keys is None:
             custom_keys = dict(model="model_state", 
-                        optimizer="optimizer_state",
-                        scheduler="scheduler_state")
+                               optimizer="optimizer_state",
+                               scheduler="scheduler_state")
 
         checkpoint = torch.load(path) if torch.cuda.is_available() else torch.load(path, map_location=torch.device("cpu"))
         
