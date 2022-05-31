@@ -27,7 +27,7 @@ class Trainer:
     def __init__(self, 
                  model:nn.Module, 
                  optimizer:optim.Optimizer,
-                 model_parameters:Optional["OrderedDict"]=None, 
+                 #model_parameters:Optional["OrderedDict"]=None, 
                  teacher_model:Optional[nn.Module]=None,
                  scheduler:Optional[lr_scheduler._LRScheduler]=None, 
                  scheduling_strategy:str="step", 
@@ -48,7 +48,7 @@ class Trainer:
         
         self.model = model
         self.teacher_model = teacher_model
-        self.model_parameters = model_parameters
+        #self.model_parameters = model_parameters
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.scheduling_strategy = SchedulingStrategy(scheduling_strategy)
@@ -95,7 +95,7 @@ class Trainer:
             self.scaler = GradScaler()
 
 
-        self.model_parameters = self.model.parameters() if self.model_parameters is None else self.model_parameters
+        #self.model_parameters = self.model.parameters() if self.model_parameters is None else self.model_parameters
         self.__deepspeed = is_deepspeed_available() and self.deepspeed
 
         if self.__deepspeed:
@@ -390,6 +390,10 @@ class Trainer:
         return loss.detach(), metrics
                 
     def clip_gradients(self) -> None:
+        """
+        Applies gradient clipping for model's parameters.
+        """
+
         if self.gradient_norm > 0 and self.__deepspeed:
             if self.scaler is not None and not self.__is_scaler_called and self.amp:
                 self.scaler.unscale_(self.optimizer)
@@ -402,12 +406,40 @@ class Trainer:
                       model:nn.Module, 
                       return_outputs:bool=True, 
                       device:Union[str, torch.device]="cpu") -> torch.Tensor:
+        """
+        Calculates loss.        
+        """
+
         raise NotImplementedError(f"`calculate_loss` function is not implemented.")
 
     def get_targets(self, batch:Any) -> Any:
+        """
+        Returns targets from batch.
+
+        Inputs:
+            batch: Any - batch of data.
+        
+        Returns:
+            targets: Any - batch's targets. Default: [].
+
+        """
+
         return []
     
     def calculate_metrics(self, predictions:Any, targets:Any, device:Union[str, torch.device]="cpu") -> dict:
+        """
+        Calculates metrics
+
+        Inputs:
+            predictions: Any - outputs of model from `calculate_loss`.
+            targets: Any - outputs of `get_targets` function.
+            device: Union[str, torch.device] - device. Default: "cpu".
+        
+        Returns:
+            metrics: dict - calculated metrics. Default: {}.
+
+        """
+
         return {}
     
     def model_checkpointing(self, 
@@ -466,7 +498,9 @@ class Trainer:
                                                                     return_outputs=True, 
                                                                     device=self.device)
                     
-                    batch_loss /= self.gradient_accumulation_steps
+                    if self.gradient_accumulation_steps > 1 and not self.__deepspeed:
+                        batch_loss /= self.gradient_accumulation_steps
+                    
                     batch_targets = self.get_targets(batch)
                     batch_metrics = self.calculate_metrics(predictions=batch_outputs, targets=batch_targets, device=self.device)
 
