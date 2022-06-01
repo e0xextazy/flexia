@@ -109,7 +109,6 @@ class Trainer:
             else:
                 self.device = "cpu"
         
-
         if self.gradient_scaling and self.scaler is None and self.amp:
             self.scaler = GradScaler()
 
@@ -182,7 +181,6 @@ class Trainer:
 
                 if step % self.gradient_accumulation_steps == 0:
                     self.optimization_step()
-                    self.__is_scaler_called = False
 
                     if self.scheduling_strategy == SchedulingStrategy.STEP:
                         self.scheduling_step(loop="training")
@@ -192,17 +190,17 @@ class Trainer:
                 train_metrics.update(batch_metrics, n=batch_size)
                 epoch_train_metrics.update(batch_metrics, n=batch_size)
 
+                logs = {"train/loss": train_loss.average, 
+                        "train/loss vs batch": batch_loss, 
+                        "train/loss vs epoch": epoch_train_loss.average,
+                        "lr": lr}
+
+                for metric in batch_metrics:
+                    logs.update({f"train/{metric}": train_metrics.average[metric], 
+                                 f"train/{metric} vs batch": batch_metrics[metric], 
+                                 f"train/{metric} vs epoch": epoch_train_metrics.average[metric]})
+
                 if is_wandb:
-                    logs = {"train/loss": train_loss.average, 
-                            "train/loss vs batch": batch_loss, 
-                            "train/loss vs epoch": epoch_train_loss.average,
-                            "lr": lr}
-
-                    for metric in batch_metrics:
-                        logs.update({f"train/{metric}": train_metrics.average[metric], 
-                                     f"train/{metric} vs batch": batch_metrics[metric], 
-                                     f"train/{metric} vs epoch": epoch_train_metrics.average[metric]})
-
                     wandb.log(logs, step=self.passed_steps) 
 
                 if "tqdm" in self.logger:
@@ -228,14 +226,14 @@ class Trainer:
                         self.scheduling_step(loss=validation_loss, loop="validation")
 
 
+                        logs = {"validation/loss": validation_loss, 
+                                "train/loss vs validation steps": epoch_train_loss.average}
+
+                        for metric, value in validation_metrics.items():
+                            logs.update({f"validation/{metric}": value, 
+                                         f"train/{metric} vs validation steps": epoch_train_metrics.average[metric]})
+
                         if is_wandb:
-                            logs = {"validation/loss": validation_loss, 
-                                    "train/loss vs validation steps": epoch_train_loss.average}
-
-                            for metric, value in validation_metrics.items():
-                                logs.update({f"validation/{metric}": value, 
-                                             f"train/{metric} vs validation steps": epoch_train_metrics.average[metric]})
-
                             wandb.log(logs, step=self.passed_steps)
 
                         is_checkpoint_saved = self.model_checkpointing(loss=validation_loss, 
