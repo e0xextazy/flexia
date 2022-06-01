@@ -12,16 +12,12 @@ from collections import OrderedDict
 from .utils import SchedulingStrategy, ValidationStrategy
 from ..timer import Timer
 from ..averager import Averager
-from ..import_utils import is_wandb_available, wandb_run_exists, is_deepspeed_available
+from ..import_utils import is_wandb_available, wandb_run_exists
 from ..utils import get_lr
 
 
 if is_wandb_available():
     import wandb
-
-if is_deepspeed_available():
-    import deepspeed as ds
-
 
 class Trainer:
     def __init__(self, 
@@ -37,14 +33,13 @@ class Trainer:
                  gradient_norm:float=0, 
                  amp:bool=False, 
                  verbose:int=1, 
-                 device:Optional[Union[str, torch.device]]=torch.device("cpu"), 
+                 device:Optional[Union[str, torch.device]]="cpu", 
                  validation_strategy:str="epoch",
                  validation_steps:int=1, 
                  decimals:int=4, 
                  logger:Union[str, list]="print", 
                  epochs:int=1, 
-                 time_format:str="{hours}:{minutes}:{seconds}", 
-                 deepspeed:bool=False) -> None:
+                 time_format:str="{hours}:{minutes}:{seconds}") -> None:
         
         """
         
@@ -93,7 +88,6 @@ class Trainer:
         self.logger = logger
         self.epochs = epochs
         self.time_format = time_format   
-        self.deepspeed = deepspeed 
         
         if not (0 < self.epochs):
             raise ValueError(f"`epochs` must be greater than 0, but given {self.epochs}.")
@@ -111,34 +105,13 @@ class Trainer:
 
         if self.device is None:
             if torch.cuda.is_availabel():
-                self.device = torch.device("cuda")
+                self.device = "cuda"
             else:
-                self.device = torch.device("cpu")
-        else:
-            self.device = torch.device(self.device)
+                self.device = "cpu"
         
-        #self.amp = not self.amp == self.deepspeed
 
         if self.gradient_scaling and self.scaler is None and self.amp:
             self.scaler = GradScaler()
-
-
-        #self.model_parameters = self.model.parameters() if self.model_parameters is None else self.model_parameters
-        self.__deepspeed = is_deepspeed_available() and self.deepspeed
-
-        if self.__deepspeed:
-            self.deepspeed_arguments = {
-                "gradient_accumulation_steps": self.gradient_accumulation_steps, 
-                "fp16": self.amp
-            }
-
-            self.model, self.optimizer, _, self.scheduler = ds.initialize(model=self.model, 
-                                                                          optimizer=self.optimizer, 
-                                                                          model_parameters=self.model_parameters, 
-                                                                          lr_scheduler=self.scheduler,
-                                                                          dist_init_required=True, 
-                                                                          args=self.deepspeed_arguments)
-
 
         self.best_validation_loss, self.best_validation_metrics, self.best_validation_outputs = None, None, None
         self.lr_key = "lr"
@@ -198,9 +171,6 @@ class Trainer:
                 batch_size = len(batch)
                 pseudo_batch = None if pseudo_loader is None else next(iter(pseudo_loader))
                 
-                if self.__deepspeed:
-                    self.model.step()
-
                 batch_loss, batch_metrics = self.training_step(batch=batch, 
                                                                overall_loss=epoch_train_loss.average, 
                                                                overall_metrics=epoch_train_metrics.average,
@@ -318,13 +288,10 @@ class Trainer:
 
         
     def backward_step(self, loss:torch.Tensor) -> torch.Tensor:
-        if self.__deepspeed:
-            self.model.backward(loss)
+        if self.scaler is not None and self.amp:
+            self.scaler.scale(loss).backward()
         else:
-            if self.scaler is not None and self.amp:
-                self.scaler.scale(loss).backward()
-            else:
-                loss.backward()
+            loss.backward()
         
         return loss
     
@@ -332,15 +299,14 @@ class Trainer:
     def optimization_step(self) -> None:     
         """
         Applies optimization step.
-        """      
-        if not self.__deepspeed:          
-            if self.scaler is not None and self.amp:
-                self.scaler.step(self.optimizer)
-                self.scaler.update()
-            else:
-                self.optimizer.step()
+        """            
+        if self.scaler is not None and self.amp:
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
+        else:
+            self.optimizer.step()
 
-            self.model.zero_grad()
+        self.model.zero_grad()
         
 
     def scheduling_step(self, loss:Optional[torch.Tensor]=None, loop:str="training") -> None:
@@ -348,7 +314,7 @@ class Trainer:
         Applies learning rate scheduling.
         """
 
-        if self.scheduler is not None and not self.__deepspeed:
+        if self.scheduler is not None:
             if loop == "validation":
                 if isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau):
                     self.scheduler.step(loss)
@@ -375,7 +341,7 @@ class Trainer:
             targets = self.get_targets(batch)
             metrics = self.calculate_metrics(predictions=outputs, targets=targets, device=self.device)
 
-            if self.gradient_accumulation_steps > 1 and not self.__deepspeed:
+            if self.gradient_accumulation_steps > 1:
                 loss /= self.gradient_accumulation_steps
             
             loss = self.backward_step(loss=loss)
@@ -414,7 +380,7 @@ class Trainer:
         Applies gradient clipping for model's parameters.
         """
 
-        if self.gradient_norm > 0 and not self.__deepspeed:
+        if self.gradient_norm > 0:
             nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.gradient_norm)
         
 
@@ -523,7 +489,7 @@ class Trainer:
                                                                     return_outputs=True, 
                                                                     device=self.device)
                     
-                    if self.gradient_accumulation_steps > 1 and not self.__deepspeed:
+                    if self.gradient_accumulation_steps > 1:
                         batch_loss /= self.gradient_accumulation_steps
                     
                     batch_targets = self.get_targets(batch)
