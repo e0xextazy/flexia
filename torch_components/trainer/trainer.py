@@ -196,7 +196,6 @@ class Trainer:
                 self.passed_steps += 1
                 
                 batch_size = len(batch)
-                step_timer = Timer(self.time_format)
                 pseudo_batch = None if pseudo_loader is None else next(iter(pseudo_loader))
                 
                 if self.__deepspeed:
@@ -217,16 +216,6 @@ class Trainer:
 
                     if self.scheduling_strategy == SchedulingStrategy.STEP:
                         self.scheduling_step(loop="training")
-
-                elapsed, remain = step_timer(1/1)
-                step_seconds = step_timer.elapsed_time.total_seconds()
-                sample_seconds = step_seconds / batch_size
-
-                if is_wandb:
-                    logs = {"train/seconds vs step": step_seconds, 
-                            "train/seconds vs sample": sample_seconds}
-
-                    wandb.log(logs, step=self.passed_steps)
 
                 train_loss.update(batch_loss, n=batch_size)
                 epoch_train_loss.update(batch_loss, n=batch_size)
@@ -262,25 +251,12 @@ class Trainer:
                 if validation_loader is not None:
                     if (self.passed_steps % self.validation_steps) == 0:
                         if step > self.validation_steps: print()
-                        validation_steps = len(validation_loader)
-                        validation_batch_size = validation_loader.batch_size
-                        validation_timer =  Timer(self.time_format)
                         validation_loss, validation_metrics, validation_outputs = self.validation_loop(loader=validation_loader, 
                                                                                                        return_outputs=True, 
                                                                                                        recalculate_metrics_at_end=recalculate_metrics_at_end)
                         
                         self.scheduling_step(loss=validation_loss, loop="validation")
 
-                        elapsed, remain = validation_timer(1/1)
-                        validation_seconds = validation_timer.elapsed_time.total_seconds()
-                        validation_step_seconds = validation_seconds / validation_steps
-                        validation_sample_seconds = validation_step_seconds / validation_batch_size
-
-                        if is_wandb:
-                            logs = {"validation/seconds vs step": validation_step_seconds, 
-                                    "validation/seconds vs sample": validation_sample_seconds}
-
-                            wandb.log(logs, step=self.passed_steps)
 
                         if is_wandb:
                             logs = {"validation/loss": validation_loss, 
