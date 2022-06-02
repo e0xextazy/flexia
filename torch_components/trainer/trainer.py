@@ -8,6 +8,8 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from datetime import timedelta
 from collections import OrderedDict
+import gc
+
 
 from .utils import SchedulingStrategy, ValidationStrategy
 from ..timer import Timer
@@ -15,6 +17,8 @@ from ..averager import Averager
 from ..import_utils import is_wandb_available, wandb_run_exists
 from ..utils import get_lr
 
+
+gc.enable()
 
 if is_wandb_available():
     import wandb
@@ -249,6 +253,9 @@ class Trainer:
                             self.best_validation_loss = validation_loss
                             self.best_validation_metrics = validation_metrics
                             self.best_validation_outputs = validation_outputs
+
+                        del validation_outputs
+                        gc.collect()
                             
                         print()
 
@@ -531,6 +538,8 @@ class Trainer:
 
         if "tqdm" in self.logger:
             loader.close()
+
+        outputs = outputs.to("cpu").numpy()
 
         return (loss.average, metrics.average, outputs) if return_outputs else (loss.average, metrics.average)
 
