@@ -23,7 +23,7 @@ def is_wandb_available() -> bool:
     
 def wandb_run_exists() -> bool:
     """
-    Checks for Weighs & Biases run.
+    Checks the availablity of Weighs & Biases run.
     """
     if is_wandb_available(): 
         import wandb
@@ -33,6 +33,10 @@ def wandb_run_exists() -> bool:
 
 
 def is_torch_xla_available() -> bool:
+    """
+    Checks the availablity of `torch_xla` library.    
+    """
+    
     try:
         import torch_xla
         return True

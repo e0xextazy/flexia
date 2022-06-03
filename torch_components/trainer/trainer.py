@@ -94,7 +94,7 @@ class Trainer:
         self.epochs = epochs
         self.time_format = time_format   
         self.is_tpu = is_torch_xla_available()
-        self.is_cuda = torch.cuda.is_availabel()
+        self.is_cuda = torch.cuda.is_available()
 
 
         if not (0 < self.epochs):
@@ -452,8 +452,9 @@ class Trainer:
                             best_metrics:Optional[dict]=None) -> bool:
 
         """
-        Saves checkpoints.
+        Saves model checkpoints.
         """
+
         return True
 
     def pseudo_labeling_step(self, 
@@ -476,6 +477,10 @@ class Trainer:
                          metrics:Optional[dict]=None, 
                          step:Optional[int]=None, 
                          epoch:Optional[int]=None) -> torch.Tensor:
+        """
+        Applies Adversarial Training.
+        """
+
         pass
     
     def validation_loop(self, 
