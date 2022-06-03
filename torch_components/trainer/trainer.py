@@ -189,7 +189,7 @@ class Trainer:
 
                 lr = get_lr(self.optimizer, only_last=True, key=self.lr_key)
 
-                if step % self.gradient_accumulation_steps == 0:
+                if (step % self.gradient_accumulation_steps == 0) or (step == steps):
                     self.optimization_step()
 
                     if self.scheduling_strategy == SchedulingStrategy.STEP:
@@ -311,6 +311,9 @@ class Trainer:
         """
         Applies optimization step.
         """    
+
+        self.clip_gradients()
+
         if self.scaler is not None and self.amp:
             self.scaler.step(self.optimizer)
             self.scaler.update()
@@ -383,8 +386,6 @@ class Trainer:
 
                 if pseudo_loss is not None:
                     pseudo_loss = self.backward_step(loss=pseudo_loss)
-
-        self.clip_gradients()
         
         return loss.detach(), metrics
                 
@@ -392,7 +393,6 @@ class Trainer:
         """
         Applies gradient clipping for model's parameters.
         """
-
         if self.gradient_norm > 0:
             if self.gradient_scaling:
                 self.scaler.unscale_(self.optimizer)
