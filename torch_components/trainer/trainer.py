@@ -195,6 +195,9 @@ class Trainer:
                     if self.scheduling_strategy == SchedulingStrategy.STEP:
                         self.scheduling_step(loop="training")
 
+                if self.gradient_accumulation_steps > 1:
+                    batch_loss = batch_loss * self.gradient_accumulation_steps
+
                 train_loss.update(batch_loss, n=batch_size)
                 epoch_train_loss.update(batch_loss, n=batch_size)
                 train_metrics.update(batch_metrics, n=batch_size)
@@ -509,9 +512,6 @@ class Trainer:
                                                                     model=self.model, 
                                                                     return_outputs=True, 
                                                                     device=self.device)
-                    
-                    if self.gradient_accumulation_steps > 1:
-                        batch_loss /= self.gradient_accumulation_steps
                     
                     batch_targets = self.get_targets(batch)
                     batch_metrics = self.calculate_metrics(predictions=batch_outputs, targets=batch_targets, device=self.device)
