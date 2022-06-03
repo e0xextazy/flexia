@@ -9,7 +9,6 @@ from tqdm import tqdm
 from datetime import timedelta
 import gc
 
-
 from .utils import SchedulingStrategy, ValidationStrategy
 from ..timer import Timer
 from ..averager import Averager
@@ -21,10 +20,11 @@ if is_torch_xla_available():
     from torch_xla.amp import GradScaler
     import torch_xla.core.xla_model as xm
 
-gc.enable()
-
 if is_wandb_available():
     import wandb
+
+
+gc.enable()
 
 class Trainer:
     def __init__(self, 
