@@ -16,9 +16,16 @@ if is_transformers_available():
 
 
 def get_random_seed(min_value:int=0, max_value:int=50) -> int:
+    """
+    Returns random value from [`min_value`, `max_value`] range.
+    """
+    
     return random.randint(min_value, max_value)
 
 def seed_everything(seed:Optional[int]=None) -> int:
+    """
+    Sets seed for `torch`, `numpy` and `random` libraries to have opportunity to reproduce results.
+    """
     if seed is None:
         seed = get_random_seed()
         
@@ -154,12 +161,20 @@ def load_checkpoint(path:str,
 
 
 def get_random_sample(dataset:Dataset) -> Any:
+    """
+    Returns random sample from dataset.
+    """
+
     index = random.randint(0, len(dataset)-1)
     sample = dataset[index]
     return sample
 
 
 def get_batch(loader:DataLoader) -> Any:
+    """
+    Returns batch from loader.
+    """
+
     batch = next(iter(loader))
     return batch
 

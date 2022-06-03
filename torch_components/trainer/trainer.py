@@ -7,16 +7,19 @@ from typing import Optional, Union, Any, Tuple
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from datetime import timedelta
-from collections import OrderedDict
 import gc
 
 
 from .utils import SchedulingStrategy, ValidationStrategy
 from ..timer import Timer
 from ..averager import Averager
-from ..import_utils import is_wandb_available, wandb_run_exists
+from ..import_utils import is_wandb_available, wandb_run_exists, is_torch_xla_available
 from ..utils import get_lr
 
+
+if is_torch_xla_available():
+    from torch_xla.amp import GradScaler
+    import torch_xla.core.xla_model as xm
 
 gc.enable()
 
@@ -27,7 +30,6 @@ class Trainer:
     def __init__(self, 
                  model:nn.Module, 
                  optimizer:optim.Optimizer,
-                 #model_parameters:Optional["OrderedDict"]=None, 
                  teacher_model:Optional[nn.Module]=None,
                  scheduler:Optional[lr_scheduler._LRScheduler]=None, 
                  scheduling_strategy:str="step", 
@@ -75,7 +77,6 @@ class Trainer:
 
         self.model = model
         self.teacher_model = teacher_model
-        #self.model_parameters = model_parameters
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.scheduling_strategy = SchedulingStrategy(scheduling_strategy)
@@ -92,7 +93,10 @@ class Trainer:
         self.logger = logger
         self.epochs = epochs
         self.time_format = time_format   
-        
+        self.is_tpu = is_torch_xla_available()
+        self.is_cuda = torch.cuda.is_availabel()
+
+
         if not (0 < self.epochs):
             raise ValueError(f"`epochs` must be greater than 0, but given {self.epochs}.")
         
@@ -108,8 +112,10 @@ class Trainer:
         
 
         if self.device is None:
-            if torch.cuda.is_availabel():
+            if self.is_cuda:
                 self.device = "cuda"
+            elif self.is_tpu:
+                self.device = xm.xla_device()
             else:
                 self.device = "cpu"
         
@@ -304,10 +310,12 @@ class Trainer:
     def optimization_step(self) -> None:     
         """
         Applies optimization step.
-        """            
+        """    
         if self.scaler is not None and self.amp:
             self.scaler.step(self.optimizer)
             self.scaler.update()
+        elif self.is_tpu:
+            xm.optimizer_step(self.optimizer)
         else:
             self.optimizer.step()
 
@@ -386,6 +394,9 @@ class Trainer:
         """
 
         if self.gradient_norm > 0:
+            if self.gradient_scaling:
+                self.scaler.unscale_(self.optimizer)
+            
             nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.gradient_norm)
         
 
