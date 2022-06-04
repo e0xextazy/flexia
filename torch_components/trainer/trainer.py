@@ -236,7 +236,7 @@ class Trainer:
                     if (self.passed_steps % self.validation_steps) == 0:
                         if step > self.validation_steps: print()
                         validation_loss, validation_metrics, validation_outputs = self.validation_loop(loader=validation_loader, 
-                                                                                                       return_outputs=True, 
+                                                                                                       return_outputs=return_validation_outputs, 
                                                                                                        recalculate_metrics_at_end=recalculate_metrics_at_end)
                         
                         self.scheduling_step(loss=validation_loss, loop="validation")
@@ -535,7 +535,8 @@ class Trainer:
 
                         is_targets = True
 
-                    outputs.extend(batch_outputs.to("cpu").numpy().astype(self.__numpy_dtype))
+                    if return_outputs or recalculate_metrics_at_end:
+                        outputs.extend(batch_outputs.to("cpu").numpy().astype(self.__numpy_dtype))
 
                     if step == steps and recalculate_metrics_at_end and is_targets:
                         outputs = torch.tensor(outputs, dtype=self.__torch_dtype)
@@ -566,7 +567,10 @@ class Trainer:
         if "tqdm" in self.logger:
             loader.close()
 
-        outputs = outputs.to("cpu").numpy().astype(self.__numpy_dtype)
+        if return_outputs:
+            outputs = outputs.to("cpu").numpy().astype(self.__numpy_dtype)
+        else:
+            outputs = None
 
 
         return (loss.average, metrics.average, outputs) if return_outputs else (loss.average, metrics.average)
