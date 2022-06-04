@@ -573,7 +573,7 @@ class Trainer:
             outputs = None
 
 
-        return (loss.average, metrics.average, outputs) if return_outputs else (loss.average, metrics.average)
+        return (loss.average, metrics.average, outputs)
 
 
     def format_metrics(self, metrics:dict, sep:str=" - ", add_sep_to_start:bool=True) -> str:
