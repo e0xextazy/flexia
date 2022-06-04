@@ -271,6 +271,8 @@ class Trainer:
                             
                         print()
 
+                gc.collect()
+
             if self.scheduling_strategy == SchedulingStrategy.EPOCH:
                 self.scheduling_step(loop="training")
 
@@ -294,6 +296,8 @@ class Trainer:
 
             total_time_string = Timer.format_time(total_time, time_format=self.time_format)
             print(f"Total time: {total_time_string}")
+
+        gc.collect()
 
         if validation_loader is not None:
             if return_validation_outputs:
@@ -559,6 +563,8 @@ class Trainer:
             loader.close()
 
         outputs = outputs.to("cpu").numpy().astype(self.__numpy_dtype)
+
+        gc.collect()
 
         return (loss.average, metrics.average, outputs) if return_outputs else (loss.average, metrics.average)
 
