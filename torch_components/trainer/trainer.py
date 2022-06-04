@@ -519,15 +519,15 @@ class Trainer:
                     loss.update(batch_loss.item(), n=batch_size)
                     metrics.update(batch_metrics, n=batch_size)
 
-                    if batch_targets is not None:
+                    if batch_targets is not None and recalculate_metrics_at_end:
                         if isinstance(batch_targets, dict):
                             targets.append(batch_targets)
                         else:
-                            targets.extend(batch_targets.to("cpu").tolist())
+                            targets.extend(batch_targets.to("cpu").numpy())
 
                         is_targets = True
 
-                    outputs.extend(batch_outputs.to("cpu").tolist())
+                    outputs.extend(batch_outputs.to("cpu").numpy())
 
                     if step == steps and recalculate_metrics_at_end and is_targets:
                         outputs = torch.tensor(outputs)
