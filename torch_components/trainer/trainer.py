@@ -5,6 +5,7 @@ from torch.cuda.amp import GradScaler, autocast
 from torch.optim import lr_scheduler
 from typing import Optional, Union, Any, Tuple
 from torch.utils.data import DataLoader
+import numpy as np
 from tqdm import tqdm
 from datetime import timedelta
 import gc
@@ -95,6 +96,8 @@ class Trainer:
         self.time_format = time_format   
         self.is_tpu = is_torch_xla_available()
         self.is_cuda = torch.cuda.is_available()
+        self.__numpy_dtype = np.float16 if self.amp else np.float32
+        self.__torch_dtype = torch.float16 if self.amp else torch.float32
 
 
         if not (0 < self.epochs):
@@ -523,15 +526,15 @@ class Trainer:
                         if isinstance(batch_targets, dict):
                             targets.append(batch_targets)
                         else:
-                            targets.extend(batch_targets.to("cpu").numpy())
+                            targets.extend(batch_targets.to("cpu").numpy().astype(self.__numpy_dtype))
 
                         is_targets = True
 
-                    outputs.extend(batch_outputs.to("cpu").numpy())
+                    outputs.extend(batch_outputs.to("cpu").numpy().astype(self.__numpy_dtype))
 
                     if step == steps and recalculate_metrics_at_end and is_targets:
-                        outputs = torch.tensor(outputs)
-                        targets = torch.tensor(targets)
+                        outputs = torch.tensor(outputs, dtype=self.__torch_dtype)
+                        targets = torch.tensor(targets, dtype=self.__torch_dtype)
 
                         metrics = Averager(self.calculate_metrics(predictions=outputs, targets=targets))
 
@@ -550,12 +553,12 @@ class Trainer:
                                   f"{self.format_metrics(metrics.average)}")
 
         if not recalculate_metrics_at_end: 
-            outputs = torch.tensor(outputs)
+            outputs = torch.tensor(outputs, dtype=self.__torch_dtype)
 
         if "tqdm" in self.logger:
             loader.close()
 
-        outputs = outputs.to("cpu").numpy()
+        outputs = outputs.to("cpu").numpy().astype(self.__numpy_dtype)
 
         return (loss.average, metrics.average, outputs) if return_outputs else (loss.average, metrics.average)
 
