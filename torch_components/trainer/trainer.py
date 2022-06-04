@@ -271,8 +271,6 @@ class Trainer:
                             
                         print()
 
-                gc.collect()
-
             if self.scheduling_strategy == SchedulingStrategy.EPOCH:
                 self.scheduling_step(loop="training")
 
@@ -396,6 +394,9 @@ class Trainer:
 
                 if pseudo_loss is not None:
                     pseudo_loss = self.backward_step(loss=pseudo_loss)
+
+        del batch, targets, outputs
+        gc.collect()
         
         return loss.detach(), metrics
                 
@@ -556,6 +557,9 @@ class Trainer:
                                   f"loss: {loss.average:.{self.decimals}}"
                                   f"{self.format_metrics(metrics.average)}")
 
+                    del batch, batch_outputs, batch_targets
+                    gc.collect()
+
         if not recalculate_metrics_at_end: 
             outputs = torch.tensor(outputs, dtype=self.__torch_dtype)
 
@@ -564,7 +568,6 @@ class Trainer:
 
         outputs = outputs.to("cpu").numpy().astype(self.__numpy_dtype)
 
-        gc.collect()
 
         return (loss.average, metrics.average, outputs) if return_outputs else (loss.average, metrics.average)
 
