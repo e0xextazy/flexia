@@ -489,7 +489,7 @@ class Trainer:
     def validation_loop(self, 
                         loader:DataLoader, 
                         return_outputs:bool=True, 
-                        recalculate_metrics_at_end:bool=True) -> Tuple[Any, dict]:
+                        recalculate_metrics_at_end:bool=False) -> Tuple[Any, dict]:
 
         """
         Runs validation loop.
