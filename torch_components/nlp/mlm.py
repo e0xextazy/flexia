@@ -81,7 +81,11 @@ def apply_masking(inputs:Any,
     mask_token_indexes = create_probability_mask(inputs, probability=mask_token_probability) & mask_indexes
     inputs[mask_token_indexes] = tokenizer.mask_token_id if mask_token_id is None else mask_token_id
     
-    random_token_probability = random_token_probability * (1 / (1 - mask_token_probability))
+    try:
+        random_token_probability = random_token_probability * (1 / (1 - mask_token_probability))
+    except ZeroDivisionError:
+        random_token_probability = 0
+        
     random_token_indexes = create_probability_mask(inputs, probability=random_token_probability) & mask_indexes & ~mask_token_indexes
     random_tokens = np.random.randint(low=0, high=tokenizer.vocab_size, size=inputs.shape)
     inputs[random_token_indexes] = random_tokens[random_token_indexes]
