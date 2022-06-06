@@ -266,7 +266,7 @@ def get_optimizer(model_parameters:Any, name:str="AdamW", parameters:dict={}, li
     library = OptimizerLibraries(library)
 
     if library == OptimizerLibraries.TORCH:
-        optimizer = __get_from_library(library=lr_scheduler, 
+        optimizer = __get_from_library(library=optim, 
                                        name=name, 
                                        parameters=parameters, 
                                        params=model_parameters)
