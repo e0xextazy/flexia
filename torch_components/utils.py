@@ -1,3 +1,4 @@
+from pickle import BINBYTES
 import torch
 from torch import nn, optim
 from torch.optim import Optimizer, lr_scheduler
@@ -5,14 +6,27 @@ from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
 from typing import Any, Union, Optional
+from enum import Enum
 import warnings
 import random
 import os
-from .import_utils import is_transformers_available
+from .import_utils import is_transformers_available, is_bitsandbytes_available
+from .exceptions import LibraryException
 
 
 if is_transformers_available():
     import transformers
+
+if is_bitsandbytes_available():
+    import bitsandbytes as bnb
+
+
+class ExplicitEnum(Enum):
+    @classmethod
+    def _missing_(cls, value):
+        keys = list(cls._value2member_map_.keys())
+        raise ValueError(f"`{value}` is not a valid `{cls.__name__}`, select one of `{keys}`.")
+
 
 
 def get_random_seed(min_value:int=0, max_value:int=50) -> int:
@@ -179,52 +193,100 @@ def get_batch(loader:DataLoader) -> Any:
     return batch
 
 
-def get_scheduler(name:str, parameters:Any, optimizer:_LRScheduler, from_transformers:bool=False) -> _LRScheduler:
+def __get_from_library(library, name, parameters, **kwargs):
+    instance = getattr(library, name)
+    instance = instance(**kwargs, **parameters)
+
+    return instance
+
+
+class SchedulerLibraries(ExplicitEnum):
+    TRANSFORMERS = "transformers"
+    TORCH = "torch"
+
+
+def get_scheduler(name:str, optimizer:Optimizer, parameters:dict={}, library="torch") -> _LRScheduler:
     """
-    Returns scheduler with given name and parameters. 
-    If failed to import from PyTorch, the function will try to import from HuggingFace Transformers library (if available).
+    Returns instance of scheduler.
 
-    Raises:
-        AttributeError - raised when given scheduler is not available/provided.
+    Inputs:
+        name:str - name of scheduler, e.g ReduceLROnPlateau, CosineAnnealingWarmRestarts, get_cosine_schedule_with_warmup.
+        parameters:dict - parameters of scheduler, e.g num_training_steps, T_mult, last_epoch. Default: {}.
+        optimizer:Any - instance of optimizer to schedule the learning rate.
+        library:str - library from which the scheduler will be used. Possible values: ["torch", "transformers"]. Default: "torch".
+    
+    Returns:
+        scheduler:_LRScheduler - instance of scheduler.
+
     """
 
-    try:
-        if not from_transformers:
-            instance = getattr(lr_scheduler, name)
-            scheduler = instance(optimizer=optimizer, **parameters)
-        else:
-            raise AttributeError()
 
-    except AttributeError as exception:
+    library = SchedulerLibraries(library)
+
+    if library == SchedulerLibraries.TORCH:
+        scheduler = __get_from_library(library=lr_scheduler, 
+                                       name=name, 
+                                       parameters=parameters, 
+                                       optimizer=optimizer)
+
+    elif library == SchedulerLibraries.TRANSFORMERS:
         if is_transformers_available():
-            instance = getattr(transformers, name)
-            scheduler = instance(optimizer=optimizer, **parameters)
+            scheduler = __get_from_library(library=transformers, 
+                                           name=name, 
+                                           parameters=parameters, 
+                                           optimizer=optimizer)
         else:
-            raise AttributeError(f"Given scheduler's name is not provided.")
- 
+            raise LibraryException("transformers")
+
     return scheduler
 
 
-def get_optimizer(name:str, parameters:Any, model_parameters:Any, from_transformers:bool=False) -> Optimizer:
-    """
-    Returns optimizer with given name and parameters. 
-    If failed to import from PyTorch, the function will try to import from HuggingFace Transformers library.
+class OptimizerLibraries(ExplicitEnum):
+    TRANSFORMERS = "transformers"
+    TORCH = "torch"
+    BITSANDBYTES = "bitsandbytes"
 
-    Raises:
-        AttributeError - raised when given optimizer is not available/provided.
+
+def get_optimizer(name:str, model_parameters:Any, parameters:dict={}, library:str="torch") -> Optimizer:
+    """
+    Returns instance of optimizer.
+
+    Inputs:
+        name:str - name of optimizer, e.g AdamW, SGD, RMSprop.
+        parameters:dict - parameters of optimizer, e.g lr, weight_decay. Default: {}.
+        model_parameters:Any - model's parameters to optimize.
+        library:str - library from which the optimizer will be used. Possible values: ["torch", "transformers", "bitsandbytes"]. Default: "torch".
+    
+    Returns:
+        optimizer:Optimizer - instance of optimizer.
+
     """
 
-    try:
-        if not from_transformers:
-            instance = getattr(optim, name)
-            optimizer = instance(params=model_parameters, **parameters)
-        else:
-            raise AttributeError()
-    except AttributeError as exception:
+
+    library = OptimizerLibraries(library)
+
+    if library == OptimizerLibraries.TORCH:
+        optimizer = __get_from_library(library=lr_scheduler, 
+                                       name=name, 
+                                       parameters=parameters, 
+                                       params=model_parameters)
+
+    elif library == OptimizerLibraries.TRANSFORMERS:
         if is_transformers_available():
-            instance = getattr(transformers, name)
-            optimizer = instance(params=model_parameters, **parameters)
+            optimizer = __get_from_library(library=transformers, 
+                                           name=name, 
+                                           parameters=parameters, 
+                                           params=model_parameters)
         else:
-            raise AttributeError(f"Given optimizer's name is not provided.")
+            raise LibraryException("transformers")
+
+    elif library == OptimizerLibraries.BITSANDBYTES:
+        if is_bitsandbytes_available():
+            optimizer = __get_from_library(library=bnb.optim, 
+                                           name=name, 
+                                           parameters=parameters, 
+                                           params=model_parameters)
+        else:
+            raise LibraryException("bitsandbytes")
 
     return optimizer

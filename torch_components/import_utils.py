@@ -43,3 +43,14 @@ def is_torch_xla_available() -> bool:
     except ModuleNotFoundError:
         return False
 
+
+def is_bitsandbytes_available() -> bool:
+    """
+    Checks the availablity of `bitsandbytes` library.    
+    """
+    
+    try:
+        import bitsandbytes
+        return True
+    except ModuleNotFoundError:
+        return False
