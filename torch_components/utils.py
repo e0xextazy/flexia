@@ -205,7 +205,7 @@ class SchedulerLibraries(ExplicitEnum):
     TORCH = "torch"
 
 
-def get_scheduler(name:str, optimizer:Optimizer, parameters:dict={}, library="torch") -> _LRScheduler:
+def get_scheduler(optimizer:Optimizer, name:str="LinearLR", parameters:dict={}, library="torch") -> _LRScheduler:
     """
     Returns instance of scheduler.
 
@@ -247,7 +247,7 @@ class OptimizerLibraries(ExplicitEnum):
     BITSANDBYTES = "bitsandbytes"
 
 
-def get_optimizer(name:str, model_parameters:Any, parameters:dict={}, library:str="torch") -> Optimizer:
+def get_optimizer(model_parameters:Any, name:str="AdamW", parameters:dict={}, library:str="torch") -> Optimizer:
     """
     Returns instance of optimizer.
 
