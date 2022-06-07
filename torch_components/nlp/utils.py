@@ -13,3 +13,9 @@ def convert_ids_to_string(ids:Any, tokenizer:PreTrainedTokenizer) -> str:
 def create_probability_mask(inputs:Any, probability:float=0.5) -> np.ndarray:
     probability_matrix = np.random.uniform(low=0, high=1, size=inputs.shape)
     return (probability_matrix < probability).astype(bool)
+
+
+def get_special_tokens_indexes(tokenized):
+    sequence_ids = np.array(tokenized.sequence_ids())
+    special_tokens_indexes = np.where(sequence_ids == None)[0]
+    return special_tokens_indexes
