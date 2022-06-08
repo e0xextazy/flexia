@@ -1,4 +1,3 @@
-from optparse import Option
 import torch
 from torch import nn, optim
 from torch.cuda.amp import GradScaler, autocast
