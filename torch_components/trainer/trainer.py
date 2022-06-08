@@ -499,6 +499,7 @@ class Trainer:
         Runs validation loop.
         """
         
+        self.model.to(self.device)
         self.model.eval()
         loss, metrics = Averager(), Averager()
         timer = Timer(self.time_format)

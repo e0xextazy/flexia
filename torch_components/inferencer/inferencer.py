@@ -95,6 +95,8 @@ class Inferencer:
         """
         Runs inference.
         """
+        self.model.to(self.device)
+        self.model.eval()         
         
         steps = len(loader)
         outputs = []
@@ -105,7 +107,6 @@ class Inferencer:
 
         if "tqdm" in self.logger: loader = self.__tqdm_loader_wrapper(loader, f"Inference")
 
-        self.model.eval() 
         for step, batch in enumerate(loader, 1):
             self.passed_steps += 1
             with torch.no_grad():
