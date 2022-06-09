@@ -97,7 +97,7 @@ class Inferencer:
         """
         self.model.to(self.device)
         self.model.eval()         
-        
+
         steps = len(loader)
         outputs = []
         
@@ -119,9 +119,10 @@ class Inferencer:
                     if "print" in self.logger:
                         if step % self.verbose == 0 or step == steps and self.verbose > 0:
                             elapsed, remain = timer(step/steps)
-                            print(f"{step}/{steps} - "
-                                f"remain: {remain} - ")
-                    
+                            print(f"[Prediction] "
+                                  f"{step}/{steps} - "
+                                  f"remain: {remain}")
+                     
                     batch_outputs = batch_outputs.to("cpu").numpy().astype(self.__numpy_dtype)
                     outputs.extend(batch_outputs)
                     
