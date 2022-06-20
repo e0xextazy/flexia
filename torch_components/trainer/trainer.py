@@ -13,7 +13,7 @@ from .utils import SchedulingStrategy, ValidationStrategy
 from ..timer import Timer
 from ..averager import Averager
 from ..import_utils import is_wandb_available, wandb_run_exists, is_torch_xla_available
-from ..utils import get_lr
+from ..utils import get_lr, tqdm_loader_wrapper
 
 
 if is_torch_xla_available():
@@ -45,7 +45,8 @@ class Trainer:
                  decimals:int=4, 
                  logger:Union[str, list]="print", 
                  epochs:int=1, 
-                 time_format:str="{hours}:{minutes}:{seconds}") -> None:
+                 time_format:str="{hours}:{minutes}:{seconds}", 
+                 callbacks=[]) -> None:
         
         """
         
@@ -128,24 +129,6 @@ class Trainer:
         self.lr_key = "lr"
         self.passed_steps = 0
     
-    def __tqdm_loader_wrapper(self, loader:DataLoader, description:str="") -> Any:
-        """
-        Wraps loader into `tqdm` loop.
-
-        Inputs:
-            loader: DataLoader - loader to wrap.
-            description: str - description for `tqdm` loop.
-        """
-
-        bar_format = "{l_bar} {bar} {n_fmt}/{total_fmt} - remain: {remaining}{postfix}"
-        loader = tqdm(iterable=loader, 
-                      total=len(loader),
-                      colour="#000",
-                      bar_format=bar_format)
-
-        loader.set_description_str(description)
-        return loader
-    
     
     def train(self, 
               train_loader:DataLoader, 
@@ -169,7 +152,7 @@ class Trainer:
         train_loss, train_metrics = Averager(), Averager()
         for epoch in range(1, self.epochs+1):
             if "print" in self.logger: print(f"\nEpoch {epoch}/{self.epochs}", end="\n"*2)
-            if "tqdm" in self.logger: train_loader = self.__tqdm_loader_wrapper(train_loader, f"Epoch {epoch}/{self.epochs}")
+            if "tqdm" in self.logger: train_loader = tqdm_loader_wrapper(train_loader, f"Epoch {epoch}/{self.epochs}")
 
             epoch_train_loss, epoch_train_metrics = Averager(), Averager()
             steps = len(train_loader)    
@@ -225,6 +208,7 @@ class Trainer:
                      if step % self.verbose == 0 or step == steps and self.verbose > 0:
                         elapsed, remain = timer(step/steps)
                         print(f"{step}/{steps} - "
+                              f"elapsed: {elapsed} - "
                               f"remain: {remain} - "
                               f"loss: {epoch_train_loss.average:.{self.decimals}}"
                               f"{self.format_metrics(epoch_train_metrics.average)} - "
@@ -506,7 +490,7 @@ class Trainer:
         outputs, targets = [], []
         steps = len(loader)
         
-        if "tqdm" in self.logger: loader = self.__tqdm_loader_wrapper(loader, f"[Validation]")
+        if "tqdm" in self.logger: loader = tqdm_loader_wrapper(loader, f"[Validation]")
 
         is_targets = False
         for step, batch in enumerate(loader, 1):
@@ -551,6 +535,7 @@ class Trainer:
 
                             print(f"[Validation] "
                                   f"{step}/{steps} - "
+                                  f"elapsed: {elapsed} - "
                                   f"remain: {remain} - "
                                   f"loss: {loss.average:.{self.decimals}}"
                                   f"{self.format_metrics(metrics.average)}")

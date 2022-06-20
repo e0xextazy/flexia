@@ -10,8 +10,13 @@ from enum import Enum
 import warnings
 import random
 import os
+from tqdm import tqdm
+
+
 from .import_utils import is_transformers_available, is_bitsandbytes_available
 from .exceptions import LibraryException
+
+
 
 
 if is_transformers_available():
@@ -313,3 +318,25 @@ def get_freezed_parameters(module:nn.Module) -> list:
             freezed_parameters.append(name)
             
     return freezed_parameters
+
+
+
+def tqdm_loader_wrapper(self, loader:DataLoader, description:str="", color="#000") -> Any:
+    """
+    Wraps loader into `tqdm` loop.
+
+    Inputs:
+        loader: DataLoader - loader to wrap.
+        description: str - description for `tqdm` loop.
+     """
+
+    bar_format = "{l_bar} {bar} {n_fmt}/{total_fmt} - elapsed: {elapsed} - remain: {remaining}{postfix}"
+    steps = len(loader)
+    loader = tqdm(iterable=loader, 
+                  total=steps,
+                  colour=color,
+                  bar_format=bar_format)
+
+    loader.set_description_str(description)
+
+    return loader

@@ -10,6 +10,7 @@ import gc
 
 from ..timer import Timer
 from ..import_utils import is_torch_xla_available
+from ..utils import tqdm_loader_wrapper
 
 
 if is_torch_xla_available():
@@ -61,25 +62,6 @@ class Inferencer:
 
         self.passed_steps = 0
 
-    
-    def __tqdm_loader_wrapper(self, loader:DataLoader, description:str="") -> Any:
-        """
-        Wraps loader into `tqdm` loop.
-
-        Inputs:
-            loader: DataLoader - loader to wrap.
-            description: str - description for `tqdm` loop.
-        """
-
-        bar_format = "{l_bar} {bar} {n_fmt}/{total_fmt} - remain: {remaining}{postfix}"
-        loader = tqdm(iterable=loader, 
-                      total=len(loader),
-                      colour="#000",
-                      bar_format=bar_format)
-
-        loader.set_description_str(description)
-        return loader
-
 
     def prediction_step(self, 
                         batch:Any, 
@@ -105,7 +87,7 @@ class Inferencer:
 
         timer = Timer(self.time_format)
 
-        if "tqdm" in self.logger: loader = self.__tqdm_loader_wrapper(loader, f"Inference")
+        if "tqdm" in self.logger: loader = tqdm_loader_wrapper(loader, f"Inference")
 
         for step, batch in enumerate(loader, 1):
             self.passed_steps += 1
@@ -121,6 +103,7 @@ class Inferencer:
                             elapsed, remain = timer(step/steps)
                             print(f"[Prediction] "
                                   f"{step}/{steps} - "
+                                  f"elapsed: {elapsed} - " 
                                   f"remain: {remain}")
                      
                     batch_outputs = batch_outputs.to("cpu").numpy().astype(self.__numpy_dtype)
