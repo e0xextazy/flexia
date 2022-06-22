@@ -4,8 +4,6 @@ from torch.cuda.amp import GradScaler, autocast
 from torch.optim import lr_scheduler
 from typing import Optional, Union, Any, Tuple
 from torch.utils.data import DataLoader
-import numpy as np
-from tqdm import tqdm
 from datetime import timedelta
 import gc
 
@@ -45,8 +43,7 @@ class Trainer:
                  decimals:int=4, 
                  logger:Union[str, list]="print", 
                  epochs:int=1, 
-                 time_format:str="{hours}:{minutes}:{seconds}", 
-                 callbacks=[]) -> None:
+                 time_format:str="{hours}:{minutes}:{seconds}") -> None:
         
         """
         
@@ -62,7 +59,7 @@ class Trainer:
             gradient_norm:float - max norm of gradients. Default: 0.
             amp:bool - if True, the training will use Auto Mixed Precision training, i.e training with half precision (16 bytes). Default: False.
             verbose:int - number of steps to print the results. Default: 1.
-            device: Optional[Union[str, torch.device]] - device for model and batch's data. Default: torch.device("cpu").
+            device: Optional[Union[str, torch.device]] - device for model and batch's data. Default: "cpu".
             validation_strategy:str - strategy for validating model. Possible values: ["step", "epoch"]. Default: "epoch".
             validation_steps: int - number of steps to validate the model. Default: 1.
             decimals: int - number of decimals to show the numbers, e.g. loss, metrics, etc. Default: 4.
@@ -96,8 +93,6 @@ class Trainer:
         self.time_format = time_format   
         self.is_tpu = is_torch_xla_available()
         self.is_cuda = torch.cuda.is_available()
-        self.__numpy_dtype = np.float16 if self.amp else np.float32
-        self.__torch_dtype = torch.float16 if self.amp else torch.float32
 
 
         if not (0 < self.epochs):
@@ -448,6 +443,7 @@ class Trainer:
 
         return True
 
+
     def pseudo_labeling_step(self, 
                              batch:Any, 
                              pseudo_batch:Any, 
@@ -512,16 +508,16 @@ class Trainer:
                         if isinstance(batch_targets, dict):
                             targets.append(batch_targets)
                         else:
-                            targets.extend(batch_targets.to("cpu").numpy().astype(self.__numpy_dtype))
+                            targets.extend(batch_targets.to("cpu").numpy())
 
                         is_targets = True
 
                     if return_outputs or recalculate_metrics_at_end:
-                        outputs.extend(batch_outputs.to("cpu").numpy().astype(self.__numpy_dtype))
+                        outputs.extend(batch_outputs.to("cpu").numpy())
 
                     if step == steps and recalculate_metrics_at_end and is_targets:
-                        outputs = torch.tensor(outputs, dtype=self.__torch_dtype)
-                        targets = torch.tensor(targets, dtype=self.__torch_dtype)
+                        outputs = torch.tensor(outputs)
+                        targets = torch.tensor(targets)
 
                         metrics = Averager(self.calculate_metrics(predictions=outputs, targets=targets))
 
@@ -541,13 +537,13 @@ class Trainer:
                                   f"{self.format_metrics(metrics.average)}")
 
         if not recalculate_metrics_at_end: 
-            outputs = torch.tensor(outputs, dtype=self.__torch_dtype)
+            outputs = torch.tensor(outputs)
 
         if "tqdm" in self.logger:
             loader.close()
 
         if return_outputs:
-            outputs = outputs.to("cpu").numpy().astype(self.__numpy_dtype)
+            outputs = outputs.to("cpu").numpy()
         else:
             outputs = None
 
