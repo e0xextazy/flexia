@@ -565,3 +565,24 @@ class Trainer:
             return sep + string if add_sep_to_start else string 
 
         return ""
+
+
+    def __str__(self):
+        return f"""
+               Trainer(scheduling_strategy={self.scheduling_strategy}, 
+               gradient_accumulation_steps={self.gradient_accumulation_steps}, 
+               gradient_scaling={self.gradient_scaling}, 
+               gradient_norm={self.gradient_norm}, 
+               amp={self.amp}, 
+               scaler={self.scaler},
+               verbose={self.verbose}, 
+               epochs={self.epochs},
+               validation_strategy={self.validation_strategy}, 
+               validation_steps={self.validation_steps}, 
+               device={self.device}, 
+               decimals={self.decimals}, 
+               logger={self.logger}, 
+               time_format={self.time_format})
+               """
+
+    __repr__ = __str__
