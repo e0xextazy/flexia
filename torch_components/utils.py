@@ -340,3 +340,13 @@ def tqdm_loader_wrapper(self, loader:DataLoader, description:str="", color="#000
     loader.set_description_str(description)
 
     return loader
+
+def unsqueeze(inputs, dim=0):
+    if isinstance(inputs, torch.Tensor):
+        inputs = inputs.unsqueeze(dim=dim)
+    elif isinstance(inputs, np.ndarray):
+        inputs = np.expand_dims(inputs, axis=dim)
+    else:
+        raise TypeError(f"Unsupported type `{type(inputs)}` of inputs.")
+    
+    return inputs
