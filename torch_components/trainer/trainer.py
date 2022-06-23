@@ -72,7 +72,6 @@ class Trainer:
         """
 
 
-
         self.model = model
         self.teacher_model = teacher_model
         self.optimizer = optimizer
@@ -160,12 +159,12 @@ class Trainer:
                 batch_size = len(batch)
                 pseudo_batch = None if pseudo_loader is None else next(iter(pseudo_loader))
                 
-                batch_loss, batch_metrics = self.training_step(batch=batch, 
+                batch_loss, batch_metrics = self.training_step(batch=batch,
+                                                               pseudo_batch=pseudo_batch,
                                                                overall_loss=epoch_train_loss.average, 
                                                                overall_metrics=epoch_train_metrics.average,
                                                                step=self.passed_steps, 
-                                                               epoch=epoch, 
-                                                               pseudo_batch=pseudo_batch)
+                                                               epoch=epoch)
 
                 lr = get_lr(self.optimizer, only_last=True, key=self.lr_key)
 
@@ -232,9 +231,6 @@ class Trainer:
 
                         is_checkpoint_saved = self.model_checkpointing(loss=validation_loss, 
                                                                        metrics=validation_metrics,
-                                                                       model=self.model, 
-                                                                       optimizer=self.optimizer, 
-                                                                       scheduler=self.scheduler, 
                                                                        step=self.passed_steps, 
                                                                        best_loss=self.best_validation_loss, 
                                                                        best_metrics=self.best_validation_metrics)
@@ -339,9 +335,9 @@ class Trainer:
         
         self.model.train()
         with autocast(enabled=self.amp):
-            loss, outputs = self.calculate_loss(batch=batch, model=self.model, return_outputs=True, device=self.device)
+            loss, outputs = self.calculate_loss(batch=batch, return_outputs=True)
             targets = self.get_targets(batch)
-            metrics = self.calculate_metrics(predictions=outputs, targets=targets, device=self.device)
+            metrics = self.calculate_metrics(predictions=outputs, targets=targets)
 
             if self.gradient_accumulation_steps > 1:
                 loss /= self.gradient_accumulation_steps
@@ -349,8 +345,6 @@ class Trainer:
             loss = self.backward_step(loss=loss)
 
             adversarial_loss = self.adversarial_step(batch=batch, 
-                                                     model=self.model, 
-                                                     device=self.device, 
                                                      loss=overall_loss, 
                                                      metrics=overall_metrics, 
                                                      step=step, 
@@ -362,13 +356,10 @@ class Trainer:
             if pseudo_batch is not None and self.teacher_model is not None:
                 pseudo_loss = self.pseudo_labeling_step(batch=batch,
                                                         pseudo_batch=pseudo_batch,
-                                                        model=self.model, 
-                                                        teacher_model=self.teacher_model, 
                                                         loss=loss, 
                                                         metrics=metrics,
                                                         step=step, 
-                                                        epoch=epoch, 
-                                                        device=self.device)
+                                                        epoch=epoch)
 
                 if pseudo_loss is not None:
                     pseudo_loss = self.backward_step(loss=pseudo_loss)
@@ -388,9 +379,7 @@ class Trainer:
 
     def calculate_loss(self, 
                       batch:Any, 
-                      model:nn.Module, 
-                      return_outputs:bool=True, 
-                      device:Union[str, torch.device]="cpu") -> torch.Tensor:
+                      return_outputs:bool=True) -> torch.Tensor:
         """
         Calculates loss.        
         """
@@ -411,14 +400,13 @@ class Trainer:
 
         return []
     
-    def calculate_metrics(self, predictions:Any, targets:Any, device:Union[str, torch.device]="cpu") -> dict:
+    def calculate_metrics(self, predictions:Any, targets:Any) -> dict:
         """
         Calculates metrics
 
         Inputs:
             predictions: Any - outputs of model from `calculate_loss`.
             targets: Any - outputs of `get_targets` function.
-            device: Union[str, torch.device] - device. Default: "cpu".
         
         Returns:
             metrics: dict - calculated metrics. Default: {}.
@@ -430,9 +418,6 @@ class Trainer:
     def model_checkpointing(self, 
                             loss:float, 
                             metrics:dict, 
-                            model:nn.Module, 
-                            optimizer:Optional[optim.Optimizer]=None, 
-                            scheduler:Optional[lr_scheduler._LRScheduler]=None, 
                             step:Optional[int]=None, 
                             best_loss:Optional[int]=None, 
                             best_metrics:Optional[dict]=None) -> bool:
@@ -447,19 +432,14 @@ class Trainer:
     def pseudo_labeling_step(self, 
                              batch:Any, 
                              pseudo_batch:Any, 
-                             model:nn.Module, 
-                             teacher_model:nn.Module, 
                              loss:Optional[float]=None, 
                              metrics:Optional[dict]=None, 
                              step:Optional[int]=None, 
-                             epoch:Optional[int]=None, 
-                             device:Optional[Union[str, torch.device]]="cpu") -> torch.Tensor:
+                             epoch:Optional[int]=None) -> torch.Tensor:
         pass
     
     def adversarial_step(self, 
                          batch:Any, 
-                         model:nn.Module, 
-                         device:Optional[Union[str, torch.device]]="cpu", 
                          loss:Optional[float]=None, 
                          metrics:Optional[dict]=None, 
                          step:Optional[int]=None, 
@@ -493,13 +473,10 @@ class Trainer:
             with torch.no_grad():
                 with autocast(enabled=self.amp):
                     batch_size = len(batch)
-                    batch_loss, batch_outputs = self.calculate_loss(batch=batch, 
-                                                                    model=self.model, 
-                                                                    return_outputs=True, 
-                                                                    device=self.device)
+                    batch_loss, batch_outputs = self.calculate_loss(batch=batch, return_outputs=True)
                     
                     batch_targets = self.get_targets(batch)
-                    batch_metrics = self.calculate_metrics(predictions=batch_outputs, targets=batch_targets, device=self.device)
+                    batch_metrics = self.calculate_metrics(predictions=batch_outputs, targets=batch_targets)
 
                     loss.update(batch_loss.item(), n=batch_size)
                     metrics.update(batch_metrics, n=batch_size)

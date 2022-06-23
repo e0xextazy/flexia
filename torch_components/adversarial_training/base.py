@@ -4,10 +4,7 @@ from typing import Optional, Union, Any
 
 
 class Base:
-    def calculate_loss(self, 
-                       model:nn.Module, 
-                       batch:Any, 
-                       device:Optional[Union[str, torch.device]]="cpu"):
+    def calculate_loss(self, batch:Any):
 
         raise NotImplementedError(f"`calculate_loss` function is not implemented.")
 

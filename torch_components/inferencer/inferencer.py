@@ -63,10 +63,7 @@ class Inferencer:
         self.passed_steps = 0
 
 
-    def prediction_step(self, 
-                        batch:Any, 
-                        model:nn.Module, 
-                        device:Optional[Union[str, torch.device]]="cpu"):
+    def prediction_step(self, batch:Any):
         """
         Returns outputs.
         """
@@ -94,9 +91,7 @@ class Inferencer:
             with torch.no_grad():
                 with autocast(enabled=self.amp):
                     batch_size = len(batch)
-                    batch_outputs = self.prediction_step(batch=batch, 
-                                                         model=self.model, 
-                                                         device=self.device)
+                    batch_outputs = self.prediction_step(batch=batch)
 
                     if "print" in self.logger:
                         if step % self.verbose == 0 or step == steps and self.verbose > 0:
