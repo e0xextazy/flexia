@@ -174,6 +174,8 @@ class Trainer:
                     if self.scheduling_strategy == SchedulingStrategy.STEP:
                         self.scheduling_step(loop="training")
 
+                self.on_training_step_end(step=self.passed_steps, epoch=epoch)
+
                 if self.gradient_accumulation_steps > 1:
                     batch_loss = batch_loss * self.gradient_accumulation_steps
 
@@ -218,6 +220,7 @@ class Trainer:
                         
                         self.scheduling_step(loss=validation_loss, loop="validation")
 
+                        self.on_validation_end(step=self.passed_steps, epoch=epoch)
 
                         if is_wandb:
                             logs = {"validation/loss": validation_loss, 
@@ -247,6 +250,8 @@ class Trainer:
 
             if self.scheduling_strategy == SchedulingStrategy.EPOCH:
                 self.scheduling_step(loop="training")
+
+            self.on_epoch_end(step=self.passed_steps, epoch=epoch)
 
             if "tqdm" in self.logger and "print" not in self.logger:
                 elapsed, remain = timer(1/1)
@@ -434,16 +439,16 @@ class Trainer:
                              pseudo_batch:Any, 
                              loss:Optional[float]=None, 
                              metrics:Optional[dict]=None, 
-                             step:Optional[int]=None, 
-                             epoch:Optional[int]=None) -> torch.Tensor:
+                             step:int=0, 
+                             epoch:int=0) -> torch.Tensor:
         pass
     
     def adversarial_step(self, 
                          batch:Any, 
                          loss:Optional[float]=None, 
                          metrics:Optional[dict]=None, 
-                         step:Optional[int]=None, 
-                         epoch:Optional[int]=None) -> torch.Tensor:
+                         step:int=0, 
+                         epoch:int=0) -> torch.Tensor:
         """
         Applies Adversarial Training.
         """
@@ -539,6 +544,15 @@ class Trainer:
 
         return ""
 
+
+    def on_epoch_end(self, epoch=0, step=0):
+        pass
+
+    def on_training_step_end(self, epoch=0, step=0):
+        pass
+
+    def on_validation_end(self, epoch=0, step=0):
+        pass
 
     def __str__(self):
         return f"""
