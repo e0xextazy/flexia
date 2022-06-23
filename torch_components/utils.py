@@ -1,4 +1,3 @@
-from pickle import BINBYTES
 import torch
 from torch import nn, optim
 from torch.optim import Optimizer, lr_scheduler

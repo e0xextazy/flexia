@@ -85,7 +85,7 @@ class AWP(Base):
         self.save() 
         for step in range(self.steps):
             self.adversarial_step() 
-            loss += self.calculate_loss(batch=batch)
+            loss += self.compute_loss(batch=batch)
             self.model.zero_grad()
             
         self.restore()

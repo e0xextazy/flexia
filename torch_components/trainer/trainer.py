@@ -128,7 +128,7 @@ class Trainer:
               train_loader:DataLoader, 
               validation_loader:Optional[DataLoader]=None, 
               pseudo_loader:Optional[DataLoader]=None, 
-              recalculate_metrics_at_end:bool=True, 
+              recompute_metrics_at_end:bool=True, 
               return_validation_outputs:bool=True) -> tuple:
         
         total_time = timedelta(seconds=0)
@@ -216,7 +216,7 @@ class Trainer:
                         if step > self.validation_steps: print()
                         validation_loss, validation_metrics, validation_outputs = self.validation_loop(loader=validation_loader, 
                                                                                                        return_outputs=return_validation_outputs, 
-                                                                                                       recalculate_metrics_at_end=recalculate_metrics_at_end)
+                                                                                                       recompute_metrics_at_end=recompute_metrics_at_end)
                         
                         self.scheduling_step(loss=validation_loss, loop="validation")
 
@@ -340,9 +340,9 @@ class Trainer:
         
         self.model.train()
         with autocast(enabled=self.amp):
-            loss, outputs = self.calculate_loss(batch=batch, return_outputs=True)
+            loss, outputs = self.compute_loss(batch=batch, return_outputs=True)
             targets = self.get_targets(batch)
-            metrics = self.calculate_metrics(predictions=outputs, targets=targets)
+            metrics = self.compute_metrics(predictions=outputs, targets=targets)
 
             if self.gradient_accumulation_steps > 1:
                 loss /= self.gradient_accumulation_steps
@@ -382,14 +382,14 @@ class Trainer:
             nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.gradient_norm)
         
 
-    def calculate_loss(self, 
+    def compute_loss(self, 
                       batch:Any, 
                       return_outputs:bool=True) -> torch.Tensor:
         """
-        Calculates loss.        
+        Computes loss.        
         """
 
-        raise NotImplementedError(f"`calculate_loss` function is not implemented.")
+        raise NotImplementedError(f"`compute_loss` function is not implemented.")
 
     def get_targets(self, batch:Any) -> Any:
         """
@@ -405,16 +405,16 @@ class Trainer:
 
         return []
     
-    def calculate_metrics(self, predictions:Any, targets:Any) -> dict:
+    def compute_metrics(self, predictions:Any, targets:Any) -> dict:
         """
-        Calculates metrics
+        Computes metrics
 
         Inputs:
-            predictions: Any - outputs of model from `calculate_loss`.
+            predictions: Any - outputs of model from `compute_loss`.
             targets: Any - outputs of `get_targets` function.
         
         Returns:
-            metrics: dict - calculated metrics. Default: {}.
+            metrics: dict - computed metrics. Default: {}.
 
         """
 
@@ -458,7 +458,7 @@ class Trainer:
     def validation_loop(self, 
                         loader:DataLoader, 
                         return_outputs:bool=True, 
-                        recalculate_metrics_at_end:bool=False) -> Tuple[Any, dict]:
+                        recompute_metrics_at_end:bool=False) -> Tuple[Any, dict]:
 
         """
         Runs validation loop.
@@ -478,15 +478,15 @@ class Trainer:
             with torch.no_grad():
                 with autocast(enabled=self.amp):
                     batch_size = len(batch)
-                    batch_loss, batch_outputs = self.calculate_loss(batch=batch, return_outputs=True)
+                    batch_loss, batch_outputs = self.compute_loss(batch=batch, return_outputs=True)
                     
                     batch_targets = self.get_targets(batch)
-                    batch_metrics = self.calculate_metrics(predictions=batch_outputs, targets=batch_targets)
+                    batch_metrics = self.compute_metrics(predictions=batch_outputs, targets=batch_targets)
 
                     loss.update(batch_loss.item(), n=batch_size)
                     metrics.update(batch_metrics, n=batch_size)
 
-                    if batch_targets is not None and recalculate_metrics_at_end:
+                    if batch_targets is not None and recompute_metrics_at_end:
                         if isinstance(batch_targets, dict):
                             targets.append(batch_targets)
                         else:
@@ -494,14 +494,14 @@ class Trainer:
 
                         is_targets = True
 
-                    if return_outputs or recalculate_metrics_at_end:
+                    if return_outputs or recompute_metrics_at_end:
                         outputs.extend(batch_outputs.to("cpu").numpy())
 
-                    if step == steps and recalculate_metrics_at_end and is_targets:
+                    if step == steps and recompute_metrics_at_end and is_targets:
                         outputs = torch.tensor(outputs)
                         targets = torch.tensor(targets)
 
-                        metrics = Averager(self.calculate_metrics(predictions=outputs, targets=targets))
+                        metrics = Averager(self.compute_metrics(predictions=outputs, targets=targets))
 
                     if "tqdm" in self.logger:
                         loader.set_postfix_str(f"loss: {loss.average:.{self.decimals}}"
@@ -518,7 +518,7 @@ class Trainer:
                                   f"loss: {loss.average:.{self.decimals}}"
                                   f"{self.format_metrics(metrics.average)}")
 
-        if not recalculate_metrics_at_end: 
+        if not recompute_metrics_at_end: 
             outputs = torch.tensor(outputs)
 
         if "tqdm" in self.logger:

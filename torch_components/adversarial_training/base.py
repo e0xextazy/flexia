@@ -4,9 +4,9 @@ from typing import Optional, Union, Any
 
 
 class Base:
-    def calculate_loss(self, batch:Any):
+    def compute_loss(self, batch:Any):
 
-        raise NotImplementedError(f"`calculate_loss` function is not implemented.")
+        raise NotImplementedError(f"`compute_loss` function is not implemented.")
 
 
     def adversarial_step(self) -> None:
