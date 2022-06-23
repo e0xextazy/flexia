@@ -1,2 +1,0 @@
-class GraphicMonitor:
-    pass

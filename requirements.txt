@@ -1,3 +1,5 @@
-pytimeparse==1.1.8
 numpy==1.19.5
-torch==1.8.1+cu111
+torch==1.11.0
+transformers==4.6.1
+wandb==0.12.14
+tqdm==4.49.0
