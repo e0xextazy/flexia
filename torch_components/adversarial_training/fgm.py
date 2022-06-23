@@ -13,7 +13,7 @@ if is_torch_xla_available():
 class FGM(Base):
     def __init__(self,
                 model:nn.Module,
-                parameter:str="weight",
+                parameter:str="word_embeddings",
                 eps:float=0.2,
                 start_epoch:int=0,
                 start_step:int=0,
@@ -25,7 +25,7 @@ class FGM(Base):
             
             Inputs:
                 model:nn.Module - model for adversarial attack.
-                parameter:str - parameter for adversarial  attack. Default: "weight".
+                parameter:str - parameter for adversarial  attack. Default: "word_embeddings".
                 eps:float - Default: 0.2.
                 start_epoch:int - Default: 0.
                 start_step:int - Default: 0.
