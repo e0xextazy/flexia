@@ -298,7 +298,7 @@ def get_optimizer(model_parameters:Any, name:str="AdamW", parameters:dict={}, li
 
 
 
-def freeze(module:nn.Module) -> None:
+def freeze_module(module:nn.Module) -> None:
     """
     Freezes module's parameters.
     """
@@ -307,7 +307,7 @@ def freeze(module:nn.Module) -> None:
         parameter.requires_grad = False
         
         
-def get_freezed_parameters(module:nn.Module) -> list:
+def get_freezed_module_parameters(module:nn.Module) -> list:
     """
     Returns names of freezed parameters of the given module.
     """
