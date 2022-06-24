@@ -211,6 +211,7 @@ class Trainer:
                 if "tqdm" in self.logger:
                     train_loader.set_postfix_str(f"loss: {epoch_train_loss.average:.{self.decimals}}"
                                                  f"{self.format_metrics(epoch_train_metrics.average)}")
+
                 if "print" in self.logger or "logging" in self.logger:
                      if step % self.verbose == 0 or step == steps and self.verbose > 0:
                         elapsed, remain = timer(step/steps)
@@ -261,7 +262,7 @@ class Trainer:
 
             self.on_epoch_end(step=self.passed_steps, epoch=epoch)
 
-            if "tqdm" in self.logger and "print" not in self.logger:
+            if "tqdm" in self.logger and ("print" not in self.logger and "logging" not in self.logger):
                 elapsed, remain = timer(1/1)
 
             epoch_elapsed_seconds = timer.elapsed_time.total_seconds()
@@ -295,7 +296,7 @@ class Trainer:
         return (epoch_train_loss.average, epoch_train_metrics.average)
 
         
-    def log(self, message:str, end="\n") -> None:
+    def log(self, message:str, end:str="\n") -> None:
         if "print" in self.logger:
             print(message, end=end)
 
@@ -524,16 +525,11 @@ class Trainer:
                         loader.set_postfix_str(f"loss: {loss.average:.{self.decimals}}"
                                                f"{self.format_metrics(metrics.average)}")
 
-                    if "print" in self.logger:
+                    if "print" in self.logger or "logging" in self.logger:
                         if step % self.verbose == 0 or step == steps and self.verbose > 0:
                             elapsed, remain = timer(step/steps)
-
-                            print(f"[Validation] "
-                                  f"{step}/{steps} - "
-                                  f"elapsed: {elapsed} - "
-                                  f"remain: {remain} - "
-                                  f"loss: {loss.average:.{self.decimals}}"
-                                  f"{self.format_metrics(metrics.average)}")
+                            log_message = f"[Validation] {step}/{steps} - elapsed: {elapsed} - remain: {remain} - loss: {loss.average:.{self.decimals}}{self.format_metrics(metrics.average)}"
+                            self.log(log_message)
 
         if not recompute_metrics_at_end: 
             outputs = torch.tensor(outputs)

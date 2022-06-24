@@ -10,7 +10,7 @@ import gc
 
 from ..timer import Timer
 from ..import_utils import is_torch_xla_available
-from ..utils import tqdm_loader_wrapper
+from ..utils import tqdm_loader_wrapper, get_logger
 
 
 if is_torch_xla_available():
@@ -23,7 +23,9 @@ class Inferencer:
                  amp:bool=False, 
                  logger:Union[str, list]="print", 
                  verbose:int=1, 
-                 time_format:str="{hours}:{minutes}:{seconds}"):
+                 time_format:str="{hours}:{minutes}:{seconds}", 
+                 logging_filename:str="inference_logs.log", 
+                 logging_format:str="%(message)s"):
 
         """
         
@@ -34,7 +36,7 @@ class Inferencer:
             verbose:int - number of steps to print the results. Default: 1.
             device: Optional[Union[str, torch.device]] - device for model and batch's data. Default: torch.device("cpu").
             logger: Union[str, list] - logger or loggers for logging training process, it can recieve list or just string of loggers. 
-            Possible values: ["wandb", "print", "tqdm"]. Default: "print".
+            Possible values: ["wandb", "print", "tqdm", "logging]. Default: "print".
             time_format:str - format for printing the elapsed time. Default: "{hours}:{minutes}:{seconds}".
         
 
@@ -46,7 +48,14 @@ class Inferencer:
         self.logger = logger
         self.time_format = time_format
         self.verbose = verbose
+        self.logging_filename = logging_filename
+        self.logging_format = logging_format
         
+        if "logging" in self.logger:
+            self.logging_logger = get_logger(name="inferencer", 
+                                             format=self.logging_format,  
+                                             filename=self.logging_filename)
+
         self.is_tpu = is_torch_xla_available()
         self.is_cuda = torch.cuda.is_available()
         self.__numpy_dtype = np.float16 if self.amp else np.float32
@@ -93,13 +102,11 @@ class Inferencer:
                     batch_size = len(batch)
                     batch_outputs = self.prediction_step(batch=batch)
 
-                    if "print" in self.logger:
+                    if "print" in self.logger or "logging" in self.logger:
                         if step % self.verbose == 0 or step == steps and self.verbose > 0:
                             elapsed, remain = timer(step/steps)
-                            print(f"[Prediction] "
-                                  f"{step}/{steps} - "
-                                  f"elapsed: {elapsed} - " 
-                                  f"remain: {remain}")
+                            log_message = f"[Prediction] {step}/{steps} - elapsed: {elapsed} - remain: {remain}"
+                            self.log(log_message)
                      
                     batch_outputs = batch_outputs.to("cpu").numpy().astype(self.__numpy_dtype)
                     outputs.extend(batch_outputs)
@@ -112,12 +119,22 @@ class Inferencer:
 
         if "tqdm" in self.logger: loader.close()
 
-        total_time_string = Timer.format_time(total_time, time_format=self.time_format)
-        print(f"Total time: {total_time_string}")
-
         outputs = torch.tensor(outputs, dtype=self.__torch_dtype)
         outputs = outputs.to("cpu").numpy().astype(self.__numpy_dtype)
 
         gc.collect()
         
+        if "print" in self.logger or "logging" in self.logger:
+            total_time_string = Timer.format_time(total_time, time_format=self.time_format)
+            log_message = f"Total time: {total_time_string}"
+            self.log(log_message)
+
         return outputs
+
+
+    def log(self, message:str, end:str="\n") -> None:
+        if "print" in self.logger:
+            print(message, end=end)
+
+        if "logging" in self.logger:
+            self.logging_logger.debug(message)
