@@ -8,6 +8,7 @@ from typing import Any, Union, Optional
 from enum import Enum
 import warnings
 import random
+import logging
 import os
 from tqdm import tqdm
 
@@ -349,3 +350,28 @@ def unsqueeze(inputs, dim=0):
         raise TypeError(f"Unsupported type `{type(inputs)}` of inputs.")
     
     return inputs
+
+
+def get_logger(name:str=__name__, 
+               format:str="[%(asctime)s][%(levelname)s]: %(message)s", 
+               filename:Optional[str]=None) -> logging.Logger:
+               
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    formatter = logging.Formatter(format)
+
+    if filename is not None:
+        file_handler = logging.FileHandler(name)
+        file_handler.setLevel(logging.INFO)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(logging.INFO)
+    stream_handler.setFormatter(formatter)
+
+    logger.addHandler(stream_handler)
+    
+    logger.propagate = False
+    
+    return logger

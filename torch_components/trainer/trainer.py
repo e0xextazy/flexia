@@ -11,7 +11,7 @@ from .utils import SchedulingStrategy, ValidationStrategy
 from ..timer import Timer
 from ..averager import Averager
 from ..import_utils import is_wandb_available, wandb_run_exists, is_torch_xla_available
-from ..utils import get_lr, tqdm_loader_wrapper
+from ..utils import get_lr, tqdm_loader_wrapper, get_logger
 
 
 if is_torch_xla_available():
@@ -43,7 +43,9 @@ class Trainer:
                  decimals:int=4, 
                  logger:Union[str, list]="print", 
                  epochs:int=1, 
-                 time_format:str="{hours}:{minutes}:{seconds}") -> None:
+                 time_format:str="{hours}:{minutes}:{seconds}", 
+                 logging_filename:str="training_logs.log", 
+                 logging_format:str="%(message)s") -> None:
         
         """
         
@@ -65,9 +67,10 @@ class Trainer:
             decimals: int - number of decimals to show the numbers, e.g. loss, metrics, etc. Default: 4.
             epochs: int - number of epochs. Default: 1.
             logger: Union[str, list] - logger or loggers for logging training process, it can recieve list or just string of loggers. 
-            Possible values: ["wandb", "print", "tqdm"]. Default: "print".
+            Possible values: ["wandb", "print", "tqdm", "logging]. Default: "print".
             time_format:str - format for printing the elapsed time. Default: "{hours}:{minutes}:{seconds}".
-        
+            logging_filename: str - Default: "training_logs.log".
+            logging_format: str - Default: "%(message)s".
 
         """
 
@@ -90,6 +93,8 @@ class Trainer:
         self.logger = logger
         self.epochs = epochs
         self.time_format = time_format   
+        self.logging_filename = logging_filename
+        self.logging_format = logging_format
         self.is_tpu = is_torch_xla_available()
         self.is_cuda = torch.cuda.is_available()
 
@@ -119,6 +124,11 @@ class Trainer:
         if self.gradient_scaling and self.scaler is None and self.amp:
             self.scaler = GradScaler()
 
+        if "logging" in self.logger:
+            self.logging_logger = get_logger(name="trainer", 
+                                             format=self.logging_format,  
+                                             filename=self.logging_filename)
+
         self.best_validation_loss, self.best_validation_metrics, self.best_validation_outputs = None, None, None
         self.lr_key = "lr"
         self.passed_steps = 0
@@ -145,7 +155,8 @@ class Trainer:
 
         train_loss, train_metrics = Averager(), Averager()
         for epoch in range(1, self.epochs+1):
-            if "print" in self.logger: print(f"\nEpoch {epoch}/{self.epochs}", end="\n"*2)
+            log_message = f"\nEpoch {epoch}/{self.epochs}"
+            self.log(log_message, end="\n"*2)
             if "tqdm" in self.logger: train_loader = tqdm_loader_wrapper(train_loader, f"Epoch {epoch}/{self.epochs}")
 
             epoch_train_loss, epoch_train_metrics = Averager(), Averager()
@@ -200,15 +211,12 @@ class Trainer:
                 if "tqdm" in self.logger:
                     train_loader.set_postfix_str(f"loss: {epoch_train_loss.average:.{self.decimals}}"
                                                  f"{self.format_metrics(epoch_train_metrics.average)}")
-                if "print" in self.logger:
+                if "print" in self.logger or "logging" in self.logger:
                      if step % self.verbose == 0 or step == steps and self.verbose > 0:
                         elapsed, remain = timer(step/steps)
-                        print(f"{step}/{steps} - "
-                              f"elapsed: {elapsed} - "
-                              f"remain: {remain} - "
-                              f"loss: {epoch_train_loss.average:.{self.decimals}}"
-                              f"{self.format_metrics(epoch_train_metrics.average)} - "
-                              f"lr: {lr}")
+                    
+                        log_message = f"{step}/{steps} - elapsed: {elapsed} - remain: {remain} - loss: {epoch_train_loss.average:.{self.decimals}} {self.format_metrics(epoch_train_metrics.average)} - lr: {lr}"
+                        self.log(log_message)
 
 
                 if validation_loader is not None:
@@ -264,15 +272,17 @@ class Trainer:
 
             if "tqdm" in self.logger: train_loader.close()
 
-            print(f"\nTraining loss: {epoch_train_loss.average:.{self.decimals}}"
-                  f"{self.format_metrics(epoch_train_metrics.average)}")
+            if "print" in self.logger or "logging" in self.logger:
+                log_message = f"\nTraining loss: {epoch_train_loss.average:.{self.decimals}}{self.format_metrics(epoch_train_metrics.average)}"
+                self.log(log_message)
 
-            if validation_loader is not None:
-                print(f"Validation loss: {self.best_validation_loss:.{self.decimals}}"
-                      f"{self.format_metrics(self.best_validation_metrics)}")
+                if validation_loader is not None:
+                    log_message = f"Validation loss: {self.best_validation_loss:.{self.decimals}}{self.format_metrics(self.best_validation_metrics)}"
+                    self.log(log_message)
 
-            total_time_string = Timer.format_time(total_time, time_format=self.time_format)
-            print(f"Total time: {total_time_string}")
+                total_time_string = Timer.format_time(total_time, time_format=self.time_format)
+                log_message = f"Total time: {total_time_string}"
+                self.log(log_message)
 
         gc.collect()
 
@@ -285,6 +295,13 @@ class Trainer:
         return (epoch_train_loss.average, epoch_train_metrics.average)
 
         
+    def log(self, message:str, end="\n") -> None:
+        if "print" in self.logger:
+            print(message, end=end)
+
+        if "logging" in self.logger:
+            self.logging_logger.debug(message)
+
     def backward_step(self, loss:torch.Tensor) -> torch.Tensor:
         if self.scaler is not None and self.amp:
             self.scaler.scale(loss).backward()
