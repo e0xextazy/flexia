@@ -124,9 +124,6 @@ class Trainer:
         if self.gradient_scaling and self.scaler is None and self.amp:
             self.scaler = GradScaler()
 
-        # validation model after N training steps!
-        self.validation_steps = self.validation_steps * self.gradient_accumulation_steps
-
         if "logging" in self.logger:
             self.logging_logger = get_logger(name="trainer", 
                                              format=self.logging_format,  
@@ -153,6 +150,10 @@ class Trainer:
         
         if self.validation_strategy == ValidationStrategy.EPOCH:
             self.validation_steps = len(train_loader) * self.validation_steps
+        else:
+            # validation model after N training steps!
+            self.validation_steps = int(self.validation_steps * self.gradient_accumulation_steps)
+
         if is_wandb:
             print(f"Weights & Biases Run: {wandb.run.get_url()}", end="\n"*2)
 
