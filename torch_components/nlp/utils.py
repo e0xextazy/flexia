@@ -143,3 +143,29 @@ def cutmix(input_ids:Any,
         return input_ids, attention_mask, target
     
     return input_ids, attention_mask
+
+
+def get_missing_spans(spans:Any, difference:int=1) -> list:
+    missing_spans = []
+    for span, next_span in zip(spans, spans[1::]):
+        (start, end), (next_start, next_end) = span, next_span
+        
+        if not ((next_start - end) <= difference):
+            missing_span = [end+1, next_start]
+            missing_spans.append(missing_span)
+            
+    return missing_spans
+
+
+def filter_spans(spans:Any) -> np.ndarray:
+    spans = np.array(spans)
+    starts, ends = spans[:, 0], spans[:, 1]
+    sorted_starts = np.argsort(starts)
+    spans = spans[sorted_starts]
+    return spans
+
+
+def concatenate_spans(x_spans:Any, y_spans:Any) -> np.ndarray:
+    spans = np.concatenate([x_spans, y_spans], axis=0)
+    spans = filter_spans(spans)
+    return spans
