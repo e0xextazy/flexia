@@ -22,7 +22,7 @@ class Configuration(Dict):
     
     def from_json(self, path:str) -> "Configuration":
         with open(path, "r", encoding="utf-8") as file:
-            self = self.from_json_string(file.read())            
+            self = Configuration(self.from_json_string(file.read()))     
         
         return self
 
