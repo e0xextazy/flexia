@@ -9,12 +9,8 @@ from datetime import timedelta
 import gc
 
 from ..timer import Timer
-from ..import_utils import is_torch_xla_available
 from ..utils import tqdm_loader_wrapper, get_logger
 
-
-if is_torch_xla_available():
-    import torch_xla.core.xla_model as xm
 
 class Inferencer:
     def __init__(self, 
@@ -56,7 +52,6 @@ class Inferencer:
                                              format=self.logging_format,  
                                              filename=self.logging_filename)
 
-        self.is_tpu = is_torch_xla_available()
         self.is_cuda = torch.cuda.is_available()
         self.__numpy_dtype = np.float16 if self.amp else np.float32
         self.__torch_dtype = torch.float16 if self.amp else torch.float32
@@ -64,8 +59,6 @@ class Inferencer:
         if self.device is None:
             if self.is_cuda:
                 self.device = "cuda"
-            elif self.is_tpu:
-                self.device = xm.xla_device()
             else:
                 self.device = "cpu"
 

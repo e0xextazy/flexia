@@ -1,4 +1,4 @@
-from .configuration import Configuration
+from .config import Config
 from .averager import Averager
 from .timer import Timer
 from .trainer import Trainer

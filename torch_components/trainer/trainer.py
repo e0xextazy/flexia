@@ -10,13 +10,8 @@ import gc
 from .utils import SchedulingStrategy, ValidationStrategy
 from ..timer import Timer
 from ..averager import Averager
-from ..import_utils import is_wandb_available, wandb_run_exists, is_torch_xla_available
+from ..import_utils import is_wandb_available, wandb_run_exists
 from ..utils import get_lr, tqdm_loader_wrapper, get_logger
-
-
-if is_torch_xla_available():
-    from torch_xla.amp import GradScaler
-    import torch_xla.core.xla_model as xm
 
 if is_wandb_available():
     import wandb
@@ -95,7 +90,6 @@ class Trainer:
         self.time_format = time_format   
         self.logging_filename = logging_filename
         self.logging_format = logging_format
-        self.is_tpu = is_torch_xla_available()
         self.is_cuda = torch.cuda.is_available()
 
 
@@ -116,8 +110,6 @@ class Trainer:
         if self.device is None:
             if self.is_cuda:
                 self.device = "cuda"
-            elif self.is_tpu:
-                self.device = xm.xla_device()
             else:
                 self.device = "cpu"
         
@@ -326,8 +318,6 @@ class Trainer:
         if self.scaler is not None and self.amp:
             self.scaler.step(self.optimizer)
             self.scaler.update()
-        elif self.is_tpu:
-            xm.optimizer_step(self.optimizer)
         else:
             self.optimizer.step()
 

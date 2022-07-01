@@ -32,18 +32,6 @@ def wandb_run_exists() -> bool:
         return False
 
 
-def is_torch_xla_available() -> bool:
-    """
-    Checks the availablity of `torch_xla` library.    
-    """
-    
-    try:
-        import torch_xla
-        return True
-    except ModuleNotFoundError:
-        return False
-
-
 def is_bitsandbytes_available() -> bool:
     """
     Checks the availablity of `bitsandbytes` library.    

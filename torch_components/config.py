@@ -2,9 +2,9 @@ import json
 from .third_party.addict import Dict
 
 
-class Configuration(Dict):
+class Config(Dict):
     """
-    Configuration provides you comfortable interface of saving your variables.
+    Config provides you comfortable interface of saving your variables.
     """
     
     def to_json_string(self) -> str:
@@ -18,16 +18,16 @@ class Configuration(Dict):
         return path
     
     def from_json_string(self, string:str) -> dict:
-        return json.loads(string)
+        return self(json.loads(string))
     
-    def from_json(self, path:str) -> "Configuration":
+    def from_json(self, path:str) -> "Config":
         with open(path, "r", encoding="utf-8") as file:
-            self = Configuration(self.from_json_string(file.read()))     
+            self = self.from_json_string(file.read())
         
         return self
 
     def __str__(self) -> str:
         attributes_string = ", ".join([f"{k}={v}" for k, v in self.items()])
-        return f"Configuration({attributes_string})"
+        return f"Config({attributes_string})"
 
     __repr__ = __str__
