@@ -6,20 +6,6 @@ from ..third_party.pytimeparse.timeparse import timeparse
 
 
 class Timing(Callback):
-    """
-    Timing stops training when the duration of the training stage reaches a certain limit of time. 
-    It is useful when you are using time-limit sources, e.g. Google Colab or Kaggle Kernels/Notebooks.
-    
-    Inputs:
-        duration: Union[str, timedelta] - duration of time after reaching whom, the training should be stopped. Default: '01:00:00:00'.
-        duration_separator: str - seperator for input duration's format. Default: ':'.
-        ignore_warnings: bool - if True the further warnings will be ignored. Default: False.
-        logger: Callable[[str], str] - logging method. Default: print.
-
-    Examples:
-        >>> example
-    
-    """
     def __init__(self, 
                  duration:Union[str, timedelta]="01:00:00:00", 
                  ignore_warnings:bool=False, 

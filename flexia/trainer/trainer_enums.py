@@ -1,5 +1,5 @@
 from ..enums import ExplicitEnum
-
+from enum import Enum
 
 class ValidationStrategy(ExplicitEnum):
     EPOCH = "epoch"
@@ -9,3 +9,7 @@ class ValidationStrategy(ExplicitEnum):
 class SchedulingStrategy(ExplicitEnum):
     EPOCH = "epoch"
     STEP = "step"
+
+class TrainingStates(Enum):
+    STOP = "stop"
+    CONTINUE = "continue"

@@ -8,36 +8,7 @@ from .utils import compare_values, get_delta_value, get_mode_values
 from ..utils import to_tensor
 
 
-class EarlyStopping(Callback):  
-    """
-    Early Stopping is a simple method of regularization used to avoid overfitting during 
-    training Machine Learning models by stopping the training when the monitored value has not been improved.
-    
-    Inputs:
-        mode: str - the direction where the monitored value must be improving. Default: 'min'.
-        delta: Union[float, int] - small value on which the monitored value must be improved. It is useful for preventing very small improvements, e.g +1e-7. Default: 0.0.
-        patience: Union[float, int] - a number of attempts to beat the best written monitored value, if the limit is reached, the Early Stopping returns True. Default: 5.
-        stopping_threshold: Optional[float] - if it is set,  if the monitored value reaches it, the Early Stopping returns True. Default: None.
-        check_finite: bool - if `check_finite`=True, the Early Stopping will check the input value for the infinite (NaN, Infinity, etc.), if the value is infinite the Early Stopping returns True. Default: False.
-        logger: Callable[[str], str] - logging method. Default: print.
-        ignore_warnings: bool - if True the further warnings will be ignored. Default: False.
-    
-    Examples:
-        # Example of settings for monitoring Accuracy score. 
-        # The Accuracy score must be improving on 1% (0.01) during 3 attempts, 
-        # In addition, Accuracy score must be greater than 50% otherwise the training will be stopped. 
-
-        >>> from torch_components.callbacks import EarlyStopping
-        >>> callback = EarlyStopping(mode="max", 
-                                     delta=0.01, 
-                                     patience=3, 
-                                     stopping_threshold=50, 
-                                     check_finite=False, 
-                                     ignore_warnings=False)
-    
-    """
-    
-    
+class EarlyStopping(Callback):   
     def __init__(self, 
                  mode:str="min", 
                  delta:Union[float, int]=0.0, 

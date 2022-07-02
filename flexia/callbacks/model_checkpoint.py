@@ -13,36 +13,6 @@ from ..utils import to_tensor
 
 
 class ModelCheckpoint(Callback):  
-    """
-    Model Checkpoint saves the model's weights (optimizer's state, and scheduler's state) when the monitored value has been improved.
-    
-    Inputs:
-        mode: str - the direction where the monitored value must be improving. Default: 'min'.
-        delta: Union[float, int] - small value on which the monitored value must be improved. It is useful for preventing very small improvements, e.g +1e-7. Default: 0.0. 
-        directory: str - directory, where futher checkpoints will be saved. Default: './'.
-        overwriting: bool - if True, the `directory` will be overwrited (all files and folders will be deleted), if `directory` does not exists, ModelCheckpoint will make itself. Default: False.
-        filename_format: str - format of checkpoints' filename.
-        num_candidates: Union[int, float, str] - the number of candidates (checkpoints), that will be left after training. Default: 1.
-        ignore_warnings: bool - if True the further warnings will be ignored. Default: False.
-        logger: Callable[[str], str] - logging method. Default: print.
-            
-    Examples:
-        # Example of monitoring Accuracy score. Firstly, ModelCheckpoint will make directory './checkpoints', 
-        # and then will write checkpoints there if monitored value will be improved by 1% (0.01) with format 'awesome_checkpoint_{step}.pth', 
-        # e.g for 1st step the name will be 'awersome_checkpoint_1.pth'. In the end, there will be 3 saved checkpoints.
-
-        >>> from torch_components.callbacks import ModelCheckpoint
-        >>> checkpoints_path = "./checkpoints"
-        >>> callback = ModelCheckpoint(directory=checkpoints_path, 
-                                       overwriting=True,
-                                       mode="max", 
-                                       delta=0.01, 
-                                       filename_format="awesome_checkpoint_{step}.pth", 
-                                       num_candidates=3, 
-                                       ignore_warnings=True)
-    
-    """
-    
     def __init__(self, 
                  mode:str="min", 
                  delta:Union[float, int]=0.0, 
