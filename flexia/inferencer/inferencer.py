@@ -21,21 +21,6 @@ class Inferencer:
                  logging_filename:str="inference_logs.log", 
                  logging_format:str="%(message)s"):
 
-        """
-        
-        Inputs:
-
-            model: nn.Module - model to train.
-            amp:bool - if True, the training will use Auto Mixed Precision training, i.e training with half precision (16 bytes). Default: False.
-            verbose:int - number of steps to print the results. Default: 1.
-            device: Optional[Union[str, torch.device]] - device for model and batch's data. Default: torch.device("cpu").
-            logger: Union[str, list] - logger or loggers for logging training process, it can recieve list or just string of loggers. 
-            Possible values: ["wandb", "print", "tqdm", "logging]. Default: "print".
-            time_format:str - format for printing the elapsed time. Default: "{hours}:{minutes}:{seconds}".
-        
-
-        """
-
         self.model = model
         self.device = device
         self.amp = amp

@@ -1,40 +1,69 @@
-from .print_logger import PrintLogger
-import logging
+from .logger import Logger
+from .utils import get_logger
 
 
-def get_logger(name:str=__name__, 
-               format:str="[%(asctime)s][%(levelname)s]: %(message)s", 
-               filename=None) -> logging.Logger:
-               
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
-    formatter = logging.Formatter(format)
+class LoggingLogger(Logger):
+    def __init__(self, 
+                 name="trainer_logger", 
+                 path="logs.log", 
+                 logs_format:str="[%(asctime)s][%(levelname)s]: %(message)s", 
+                 verbose:int=1, 
+                 decimals=4) -> None:
 
-    if filename is not None:
-        file_handler = logging.FileHandler(name)
-        file_handler.setLevel(logging.INFO)
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
+        super().__init__()
 
-    stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(logging.INFO)
-    stream_handler.setFormatter(formatter)
+        self.path = path
+        self.name = name
+        self.logs_format = logs_format
+        self.verbose = verbose
+        self.decimals = decimals
 
-    logger.addHandler(stream_handler)
-    
-    logger.propagate = False
-    
-    return logger
+        self.logger = None
 
-class LoggingLogger(PrintLogger):
+    def on_init(self, trainer):
+        self.logger = get_logger(name=self.name, 
+                                 logs_format=self.logs_format, 
+                                 path=self.path) 
+
     def on_training_step_end(self, trainer):
-        pass
+        step = trainer.history["step_epoch"]
+        steps = trainer.history["steps_epoch"]
 
-    def on_validation_end(self, trainer):
-        pass
+        if step % self.verbose == 0 or step == steps and self.verbose > 0:
+            elapsed = trainer.history["elapsed_epoch"]
+            remain = trainer.history["remain_epoch"]
+            train_loss_epoch = trainer.history["train_loss_epoch"]
+            train_metrics_epoch = trainer.history["train_metrics"]
+            lr = trainer.history["lr"]
+            
+            log_message = f"{step}/{steps} - elapsed: {elapsed} - remain: {remain} - loss: {train_loss_epoch:.{self.decimals}} {self.format_metrics(train_metrics_epoch)} - lr: {lr}"
+            self.logger.debug(log_message)
+
+
+    def on_validation_step_end(self, trainer):
+        step = trainer.history["epoch_step"]
+        steps = trainer.history["steps_validation"]
+
+        if step % self.verbose == 0 or step == steps and self.verbose > 0:
+            loss = trainer.history["validation_loss"]
+            metrics = trainer.history["validation_metrics"]
+            elapsed = trainer.history["elapsed_epoch"]
+            remain = trainer.history["remain_epoch"]
+            
+            log_message = f"[Validation] {step}/{steps} - elapsed: {elapsed} - remain: {remain} - loss: {loss:.{self.decimals}}{self.format_metrics(metrics.average)}"
+            self.logger.debug(log_message)
+
 
     def on_epoch_start(self, trainer):
-        pass
+        epoch = trainer.history["epoch"]
+        epochs = trainer.history["epochs"]
 
-    def on_training_end(self, trainer):
-        pass
+        log_message = f"Epoch {epoch}/{epochs}"
+        self.logger.debug(log_message)
+
+    def format_metrics(self, metrics:dict) -> str:
+        if metrics != {}:
+            string = self.sep.join([f"{k}: {v:.{self.decimals}}" for k, v in metrics.items()])
+            return string
+            
+        return ""

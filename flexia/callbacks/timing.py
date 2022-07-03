@@ -1,8 +1,11 @@
 from typing import Union, Callable
 from datetime import timedelta, datetime
 import warnings
+
+
 from .callback import Callback
 from ..third_party.pytimeparse.timeparse import timeparse
+from ..trainer.trainer_enums import TrainingStates
 
 
 class Timing(Callback):
@@ -42,35 +45,14 @@ class Timing(Callback):
         self.elapsed_time = timedelta()
         self.is_stopped = False
         
-    def state_dict(self) -> dict:
-        state = {
-            "start": self.start,
-            "duration": self.duration,
-            "remaining_time": self.remaining_time,
-            "elapsed_time": self.elapsed_time,
-            "is_stopped": self.is_stopped,
-            "duration_separator": self.duration_separator,
-        }
+
+    def on_epoch_end(self, trainer):
+        self.is_stopped = self.check()
         
-        return state
-    
-    
-    def load_state_dict(self, state_dict:dict):
-        self.start = state_dict["start"]
-        self.duration = state_dict["duration"]
-        self.remaining_time = state_dict["remaining_time"]
-        self.elapsed_time = state_dict["elapsed_time"]
-        self.duration_separator = state_dict["duration_separator"]
-        self.is_stopped = state_dict["is_stopped"]
+        if self.is_stopped:
+            trainer.state = TrainingStates.TRAINING_STOP
         
-        return self
-        
-    def update(self) -> bool:
-        """
-        Outputs:
-            is_stopped: bool - True if duration time is reached.
-        """
-        
+    def check(self) -> bool:       
         now = datetime.now()
         self.elapsed_time = abs(now - self.start)
         self.remaining_time = timedelta(seconds=max(0, (self.duration - self.elapsed_time).total_seconds()))

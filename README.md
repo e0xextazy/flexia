@@ -7,7 +7,7 @@ API interface is designed from HuggingFace Transformers, and PyTorch Lightning f
 
 # Installation
 
-Installation is the first step for using any library. Flexia offers you many ways to do it depending on your setup. 
+Flexia offers you many ways to do it depending on your setup: PyPi (pip), Google Colab, and Kaggle Kernels.
 
 ### PyPi (pip)
 
@@ -29,6 +29,7 @@ import flexia
 
 ### Kaggle Kernels
 
+There are many ways to install libraries in Kaggle Kernels. We will describe only one way, which is faster and more suitable for  Kernels Competitions, where submitting require disabling an Internet connection.
 
 
 # Getting Started

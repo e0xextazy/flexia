@@ -105,30 +105,6 @@ class ModelCheckpoint(Callback):
                 os.unlink(path)
             elif os.path.isdir(path):
                 shutil.rmtree(path)
-                
-    
-    def state_dict(self) -> dict:
-        state = {
-            "directory": self.directory,
-            "best_checkpoint_path": self.best_checkpoint_path,
-            "best_value": self.best_value.item(),
-            "filename_format": self.filename_format,
-            "step": self.step,
-            "best_step": self.best_step,
-        }
-        
-        return state
-    
-    
-    def load_state_dict(self, state_dict:dict):
-        self.directory = state_dict["directory"]
-        self.best_checkpoint_path = state_dict["best_checkpoint_path"]
-        self.best_value = to_tensor(state_dict["best_value"])
-        self.filename_format = state_dict["filename_format"]
-        self.step = state_dict["step"]
-        self.best_step = state_dict["best_step"]
-        
-        return self     
     
     
     def append_candidate(self, path:str, value:Union[float, torch.Tensor, int]) -> None:   

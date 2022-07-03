@@ -11,6 +11,7 @@ class SchedulingStrategy(ExplicitEnum):
     EPOCH = "epoch"
     STEP = "step"
 
+
 class TrainingStates(Enum):
     INIT = "on_init"
     TRAINING_START = "on_training_start"
@@ -21,3 +22,5 @@ class TrainingStates(Enum):
     VALIDATION_END = "on_validation_end"
     EPOCH_START = "on_epoch_start"
     EPOCH_END = "on_epoch_end"
+    TRAINING_STOP = "on_training_stop"
+    SAVE_CHECKPOINT = "on_save_checkpoint"

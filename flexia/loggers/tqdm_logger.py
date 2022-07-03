@@ -20,16 +20,17 @@ class TQDMLogger(Logger):
         epoch = trainer.history["epoch"]
         epochs = trainer.history["epochs"]
 
-        trainer.train_loader = self.__loader_wrapper(loader=trainer.train_loader, description=f"Epoch {epoch}/{epochs}")
+        description = f"Epoch {epoch}/{epochs}"
+        trainer.train_loader = self.__loader_wrapper(loader=trainer.train_loader, description=description)
 
     def on_validation_start(self, trainer):
-        trainer.validation_loader = self.__loader_wrapper(loader=trainer.validation_loader, description="Validation")
+        description = "Validation"
+        trainer.validation_loader = self.__loader_wrapper(loader=trainer.validation_loader, description=description)
 
     def on_training_step_end(self, trainer):
         train_loss_epoch = trainer.history["train_loss_epoch"] 
         train_metric_epoch = trainer.history["train_metrics_epoch"]
 
-    
         string = f"loss: {train_loss_epoch:.{self.decimals}}{self.format_metrics(train_metric_epoch)}"
         trainer.train_loader.set_postfix_str(string)
 

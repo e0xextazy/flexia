@@ -79,6 +79,9 @@ class Trainer:
         self.history = Dict({
             "step": 0,
             "epoch": 0,
+            "best_validation_loss": np.inf,
+            "best_validation_metrics": {},
+            "best_validation_outputs": [],
         })
         
         self.train_loader, self.validation_loader = None, None
@@ -89,20 +92,25 @@ class Trainer:
     def state(self):
         return self._state
 
+    def __runner(self, instances=None):
+        def run(instance):
+            method = getattr(instance, self.state.value)
+            method(self)
+
+        if instances is not None:
+            if isinstance(instances, list):
+                for instance in instances:
+                    run(instance)
+            else:
+                run(instances)
+
     @state.setter
     def state(self, value):
-        function_name = value.value
-        if self.loggers is not None:
-            for logger in self.loggers:
-                logger_method = getattr(logger, function_name)
-                logger_method(self)
+        if self._state != TrainingStates.TRAINING_STOP:
+            self._state = value
 
-        if self.callbacks is not None:
-            for callback in self.callbacks:
-                callback_method = getattr(callback, function_name)
-                callback_method(self)
-
-        self._state = value
+        self.__runner(instances=self.callbacks)
+        self.__runner(instances=self.loggers)
     
     def train(self, 
               train_loader:DataLoader, 
@@ -112,6 +120,7 @@ class Trainer:
         
         self.train_loader = train_loader
         self.validation_loader = validation_loader
+        self.return_validation_outputs = return_validation_outputs
 
         total_time = timedelta(seconds=0)
 
@@ -192,38 +201,46 @@ class Trainer:
                 if self.validation_loader is not None:
                     if (self.history["step"] % self.validation_steps) == 0:
 
-                        validation_loss, validation_metrics, validation_outputs = self.validation_loop(loader=self.validation_loader, 
-                                                                                                       return_outputs=return_validation_outputs)
-                        
+                        validation_loss, validation_metrics, validation_outputs = self.validation_loop(loader=self.validation_loader)
+
                         self.scheduling_step(loss=validation_loss, loop="validation")
 
-                        if True:
-                            self.best_validation_loss = validation_loss
-                            self.best_validation_metrics = validation_metrics
-                            self.best_validation_outputs = validation_outputs
+                        if self.state == TrainingStates.SAVE_CHECKPOINT:
+                            self.history.update({
+                                "best_validation_loss": validation_loss,
+                                "best_validation_metrics": validation_metrics,
+                                "best_validation_outputs": validation_outputs,
+                            })
 
                         del validation_outputs
-                            
-                        print()
+
+                if self.state == TrainingStates.TRAINING_STOP:
+                    return self.__return()
 
             if self.scheduling_strategy == SchedulingStrategy.EPOCH:
                 self.scheduling_step(loop="training")
 
             self.state = TrainingStates.EPOCH_END
 
-            epoch_elapsed_seconds = timer.elapsed_time.total_seconds()
-            total_time += timedelta(seconds=epoch_elapsed_seconds)
+        self.state = TrainingStates.TRAINING_END
 
-            self.state = TrainingStates.TRAINING_END
+        return self.__return()
 
+
+    def __return(self):
+        train_loss_epoch = self.history["train_loss_epoch"]
+        train_metrics_epoch = self.history["train_metrics_epoch"]
+        best_validation_loss = self.history["best_validation_loss"]
+        best_validation_metrics = self.history["best_validation_metrics"]
+        best_validation_outputs = self.history["best_validation_outputs"]
+        
         if self.validation_loader is not None:
-            if return_validation_outputs:
-                return (epoch_train_loss.average, epoch_train_metrics.average), (self.best_validation_loss, self.best_validation_metrics, self.best_validation_outputs)
+            if self.return_validation_outputs:
+                return (train_loss_epoch, train_metrics_epoch), (best_validation_loss, best_validation_metrics, best_validation_outputs)
 
-            return (epoch_train_loss.average, epoch_train_metrics.average), (self.best_validation_loss, self.best_validation_metrics)
+            return (train_loss_epoch, train_metrics_epoch), (best_validation_loss, best_validation_metrics)
 
-        return (epoch_train_loss.average, epoch_train_metrics.average)
-
+        return (train_loss_epoch, train_metrics_epoch)
 
     def backward_step(self, loss:torch.Tensor) -> torch.Tensor:
         if self.scaler is not None and self.amp:
@@ -288,7 +305,7 @@ class Trainer:
             
             nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.gradient_norm)
             
-    def validation_loop(self, loader:DataLoader, return_outputs:bool=True) -> Tuple[Any, dict]:
+    def validation_loop(self, loader:DataLoader) -> Tuple[Any, dict]:
         self.model.to(self.device)
         self.model.eval()
         loss, metrics = Averager(), Averager()
@@ -323,7 +340,7 @@ class Trainer:
 
                     self.state = TrainingStates.VALIDATION_STEP_END
 
-                    if return_outputs:
+                    if self.return_validation_outputs:
                         outputs.extend(batch_outputs.to("cpu").numpy())
 
         self.history.update({
@@ -333,7 +350,7 @@ class Trainer:
 
         self.state = TrainingStates.VALIDATION_END
 
-        if return_outputs:
+        if self.return_validation_outputs:
             outputs = np.asarray(outputs)
         else:
             outputs = None

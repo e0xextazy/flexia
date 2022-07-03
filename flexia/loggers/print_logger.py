@@ -2,11 +2,10 @@ from .logger import Logger
 
 
 class PrintLogger(Logger):
-    def __init__(self, verbose:int=1, sep=" - ", decimals=4) -> None:
+    def __init__(self, verbose:int=1, decimals=4) -> None:
         super().__init__()
 
         self.verbose = verbose
-        self.sep = sep
         self.decimals = decimals
 
     def on_training_step_end(self, trainer):
@@ -41,8 +40,8 @@ class PrintLogger(Logger):
     def on_epoch_start(self, trainer):
         epoch = trainer.history["epoch"]
         epochs = trainer.history["epochs"]
-
-        print(f"Epoch {epoch}/{epochs}")
+        log_message = f"Epoch {epoch}/{epochs}"
+        print(log_message)
 
     def format_metrics(self, metrics:dict) -> str:
         if metrics != {}:
@@ -50,4 +49,3 @@ class PrintLogger(Logger):
             return string
             
         return ""
-
