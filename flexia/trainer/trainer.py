@@ -257,7 +257,7 @@ class Trainer:
         self.model.train()
         with autocast(enabled=self.amp):
             loss, outputs = self.compute_loss(batch=batch, return_outputs=True)
-            metrics = self.compute_metrics(predictions=outputs, batch=batch)
+            metrics = self.compute_metrics(batch=batch, predictions=outputs)
 
             if self.gradient_accumulation_steps > 1:
                 loss /= self.gradient_accumulation_steps
@@ -300,7 +300,7 @@ class Trainer:
                     self.state = TrainingStates.VALIDATION_STEP_START
 
                     batch_loss, batch_outputs = self.compute_loss(batch=batch, return_outputs=True)
-                    batch_metrics = self.compute_metrics(predictions=batch_outputs, batch=batch)
+                    batch_metrics = self.compute_metrics(batch=batch, predictions=batch_outputs)
 
                     loss.update(batch_loss.item(), n=batch_size)
                     metrics.update(batch_metrics, n=batch_size)
@@ -338,7 +338,7 @@ class Trainer:
                       return_outputs:bool=True) -> torch.Tensor:
         raise NotImplementedError(f"`compute_loss` function is not implemented.")
     
-    def compute_metrics(self, predictions:Any, batch:Any) -> dict:
+    def compute_metrics(self, batch:Any, predictions:Any) -> dict:
         return {}
 
     def pseudo_labeling_step(self, 

@@ -4,7 +4,7 @@ import logging
 
 def get_logger(name:str=__name__, 
                format:str="[%(asctime)s][%(levelname)s]: %(message)s", 
-               filename:Optional[str]=None) -> logging.Logger:
+               filename=None) -> logging.Logger:
                
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
