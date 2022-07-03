@@ -1,4 +1,7 @@
 class Logger:    
+    def on_init(self, trainer):
+        pass
+
     def on_training_step_start(self, trainer):
         pass
 
