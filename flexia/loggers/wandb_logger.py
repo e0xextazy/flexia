@@ -4,7 +4,11 @@ import wandb
 
 class WANDBLogger(Logger):
     def __init__(self, **kwargs):
-        wandb.init(**kwargs)
+        self.kwargs = kwargs
+
+    def on_training_start(self, trainer):
+        wandb.init(**self.kwargs)
+        print(f"Weights & Biases Run URL: {wandb.run.get_url()}")
 
     def on_training_step_end(self, trainer):
         logs = {

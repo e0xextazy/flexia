@@ -86,7 +86,7 @@ class Trainer:
 
     @property
     def state(self):
-        return self.state
+        return self._state
 
     @state.setter
     def state(self, value):
@@ -101,7 +101,7 @@ class Trainer:
                 callback_method = getattr(callback, function_name)
                 callback_method(self)
 
-        self.state = value
+        self._state = value
     
     def train(self, 
               train_loader:DataLoader, 
