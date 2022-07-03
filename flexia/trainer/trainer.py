@@ -84,6 +84,9 @@ class Trainer:
         self.train_loader, self.validation_loader = None, None
         self.state = TrainingStates.INIT
 
+    @property
+    def state(self):
+        return self.state
 
     @property.setter
     def state(self, value):
