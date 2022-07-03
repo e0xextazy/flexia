@@ -2,14 +2,14 @@ import os
 from setuptools import setup, find_packages
 
 
-NAME = "torch-components"
-DESCRIPTION = "Torch Components is an open-source high-level API above the PyTorch framework. It provides functionality, which can be easily inserted into any PyTorch training and validation scripts."
-VERSION = "1.5.0"
+NAME = "flexia"
+DESCRIPTION = """Flexia (Flexible Artificial Intelligence) is an open-source library, which provides high-level functionality for developing accurate Deep Learning models. There is a variety of methods for controlling (e.g Early Stopping, Model Checkpointing, Timing, etc.) and monitoring (e.g Weights & Biases, Print, Logging, and Taqadum) training, validation, and inferencing loops respectively."""
+VERSION = "1.0.0"
 AUTHOR = "Vadim Irtlach"
 AUTHOR_EMAIL = "vadimirtlach@gmail.com"
-URL = "https://github.com/vad13irt/torch-components"
+URL = "https://github.com/vad13irt/flexia"
 REQUIRED = ["pytimeparse", "numpy", "torch"]
-PACKAGES = find_packages("torch_components", "torch_components/*")
+PACKAGES = find_packages("flexia", "flexia/*")
 
 DIRECTORY = os.getcwd()
 README_PATH = os.path.join(DIRECTORY, "README.md")
