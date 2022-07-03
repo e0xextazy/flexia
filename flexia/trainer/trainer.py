@@ -90,8 +90,6 @@ class Trainer:
 
     @state.setter
     def state(self, value):
-        self.state = value.value
-
         function_name = value.value
         if self.loggers is not None:
             for logger in self.loggers:
@@ -102,6 +100,8 @@ class Trainer:
             for callback in self.callbacks:
                 callback_method = getattr(callback, function_name)
                 callback_method(self)
+
+        self.state = value
     
     def train(self, 
               train_loader:DataLoader, 
