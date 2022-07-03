@@ -148,10 +148,7 @@ class Trainer:
                 pseudo_batch = None if pseudo_loader is None else next(iter(pseudo_loader))
                 
                 self.state = TrainingStates.TRAINING_STEP_START
-                batch_loss, batch_metrics = self.training_step(batch=batch,
-                                                               pseudo_batch=pseudo_batch,
-                                                               overall_loss=epoch_train_loss.average, 
-                                                               overall_metrics=epoch_train_metrics.average)
+                batch_loss, batch_metrics = self.training_step(batch=batch, pseudo_batch=pseudo_batch)
 
                 lr = get_lr(self.optimizer, only_last=True, key=self.lr_key)
 
