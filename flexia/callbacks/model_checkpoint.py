@@ -197,7 +197,14 @@ class ModelCheckpoint(Callback):
             
         return checkpoint
         
-        
+    
+    def on_validation_end(self, trainer):
+        pass
+
+    def on_exception(self, exception, trainer):
+        pass
+
+
     def __call__(self, 
                  value:Union[torch.Tensor, float, int], 
                  model:nn.Module, 

@@ -7,9 +7,7 @@ import numpy as np
 from typing import Any, Union, Optional
 import warnings
 import random
-import logging
 import os
-from tqdm import tqdm
 
 
 from .import_utils import is_transformers_available, is_bitsandbytes_available
@@ -157,22 +155,18 @@ def load_checkpoint(path:str,
 
         if optimizer is not None:
             optimizer_key = custom_keys.get("optimizer", "optimizer_state")
-            optimizer_state = checkpoint[optimizer_key]
+            optimizer_state = checkpoint.get(optimizer_key)
+
             if optimizer_state is not None:
                 optimizer.load_state_dict(optimizer_state, strict=strict)
-            else:
-                warnings.warn(f"`optimizer` was set, but checkpoint has not optimizer's state, hence it will be ignored.")
-        
 
         if scheduler is not None:
             scheduler_key = custom_keys.get("scheduler", "scheduler_state")
-            scheduler_state = checkpoint[scheduler_key]
+            scheduler_state = checkpoint.get(scheduler_key)
+            
             if scheduler_state is not None:
                 scheduler.load_state_dict(scheduler_state, strict=strict)
-            else:
-                if not ignore_warnings:
-                    warnings.warn(f"`scheduler` was set, but checkpoint has not scheduler's state, hence it will be ignored.")
-
+    
 
         return checkpoint
 
@@ -181,12 +175,28 @@ def save_checkpoint(path:str,
                     model:nn.Module, 
                     optimizer:Optional[Optimizer]=None, 
                     scheduler:Optional[_LRScheduler]=None, 
-                    ignore_warnings:bool=False, 
                     custom_keys:Optional["dict[str, str]"]=dict(model="model_state", 
                                                                 optimizer="optimizer_state",
                                                                 scheduler="scheduler_state"),
                     **kwargs) -> dict:
-        pass
+        
+    checkpoint = {}
+    model_key = custom_keys.get("model", "model_state")
+    checkpoint[model_key] = model.state_dict()
+
+    if optimizer is not None:
+        optimizer_key = custom_keys.get("optimizer", "optimizer_state")
+        checkpoint[optimizer_key] = optimizer.state_dict()
+
+    if scheduler is not None:
+        scheduler_key = custom_keys.get("scheduler", "scheduler_state")
+        checkpoint[scheduler_key] = scheduler.state_dict()
+
+    checkpoint.update(kwargs)
+
+    torch.save(checkpoint, path)
+
+    return path
 
 
 def get_random_sample(dataset:Dataset) -> Any:

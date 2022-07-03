@@ -4,7 +4,6 @@ from torch.cuda.amp import GradScaler, autocast
 from torch.optim import lr_scheduler
 from typing import Optional, Union, Any, Tuple
 from torch.utils.data import DataLoader
-from datetime import timedelta
 import numpy as np
 
 
@@ -75,7 +74,6 @@ class Trainer:
             self.scaler = GradScaler()
 
         self.best_validation_loss, self.best_validation_metrics, self.best_validation_outputs = None, None, None
-        self.lr_key = "lr"
         self.history = Dict({
             "step": 0,
             "epoch": 0,
@@ -122,8 +120,6 @@ class Trainer:
         self.validation_loader = validation_loader
         self.return_validation_outputs = return_validation_outputs
 
-        total_time = timedelta(seconds=0)
-
         self.model.to(self.device)
         if self.teacher_model is not None: 
             self.teacher_model.to(self.device)
@@ -146,11 +142,12 @@ class Trainer:
 
         self.state = TrainingStates.TRAINING_START
 
+        timer = Timer(self.time_format)
         for epoch in range(1, self.epochs+1):
             self.history["epoch"] = epoch
 
             epoch_train_loss, epoch_train_metrics = Averager(), Averager()
-            timer = Timer(self.time_format)
+            epoch_timer = Timer(self.time_format)
             
             self.state = TrainingStates.EPOCH_START
 
@@ -166,7 +163,7 @@ class Trainer:
 
                 batch_loss, batch_metrics = self.training_step(batch=batch, pseudo_batch=pseudo_batch)
 
-                lr = get_lr(self.optimizer, only_last=True, key=self.lr_key)
+                lr = self.get_lr()
 
                 if (step % self.gradient_accumulation_steps == 0) or (step == steps):
                     self.optimization_step()
@@ -182,15 +179,18 @@ class Trainer:
                 train_metrics.update(batch_metrics, n=batch_size)
                 epoch_train_metrics.update(batch_metrics, n=batch_size)
 
-                elapsed, remain = timer(step/steps)
+                elapsed_epoch, remain_epoch = epoch_timer(step/steps)
+                elapsed, remain = timer(self.history["step"]/self.history["steps"])
 
                 self.history.update({
                     "train_loss": train_loss.average,
                     "train_loss_batch": batch_loss,
                     "train_loss_epoch": epoch_train_loss.average,
                     "lr": lr,
-                    "elapsed_epoch": elapsed,
-                    "remain_epoch": remain,
+                    "elapsed": elapsed,
+                    "remain": remain,
+                    "elapsed_epoch": elapsed_epoch,
+                    "remain_epoch": remain_epoch,
                     "train_metrics": train_metrics.average,
                     "train_metrics_batch": batch_metrics,
                     "train_metrics_epoch": epoch_train_metrics.average,
@@ -226,6 +226,9 @@ class Trainer:
 
         return self.__return()
 
+
+    def get_lr(self):
+        return get_lr(optimizer=self.optimizer, only_last=True, key="lr")
 
     def __return(self):
         train_loss_epoch = self.history["train_loss_epoch"]
@@ -312,8 +315,7 @@ class Trainer:
         timer = Timer(self.time_format)
         outputs, targets = [], []
         steps = len(loader)
-        
-        self.history["steps_validation"] = len(loader)
+        self.history["steps_validation"] = steps
         
         self.state = TrainingStates.VALIDATION_START
 
@@ -330,12 +332,16 @@ class Trainer:
                     loss.update(batch_loss.item(), n=batch_size)
                     metrics.update(batch_metrics, n=batch_size)
 
+                    elapsed, remain = timer(step/steps)
+
                     self.history.update({
                         "validation_loss": loss.average,
                         "validation_loss_batch": batch_loss,
                         "validation_step": step,
                         "validation_metrics": metrics.average,
                         "validation_metrics_batch": batch_metrics,
+                        "validation_elapsed": elapsed,
+                        "validation_remain": remain,
                     })
 
                     self.state = TrainingStates.VALIDATION_STEP_END

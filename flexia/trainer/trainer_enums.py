@@ -24,3 +24,4 @@ class TrainingStates(Enum):
     EPOCH_END = "on_epoch_end"
     TRAINING_STOP = "on_training_stop"
     SAVE_CHECKPOINT = "on_save_checkpoint"
+    EXCEPTION = "on_exception"

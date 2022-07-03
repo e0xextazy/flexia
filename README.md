@@ -49,10 +49,16 @@ Flexia is always open to your contributions! However, your contributions are req
 - [ ] Documentation (readthedocs)
 - [ ] PyPi
 - [ ] Distributed Training
-- [ ] DeepSpeed support
+- [ ] DeepSpeed integration
+- [ ] Callbacks
+    - [ ] Model Checkpoint
+    - [ ] Early Stopping
+    - [ ] Timing
+    - [x] Lambda
+- [ ] Inferencer
 - [ ] Torch XLA
 - [ ] Examples
     - [ ] Digit Recognizer
     - [ ] Global Wheat Detection
     - [ ] Carvana Image Masking Challenge
-
+- [ ] Tests

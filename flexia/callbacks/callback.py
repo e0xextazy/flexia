@@ -37,3 +37,6 @@ class Callback:
 
     def on_checkpoint_save(self, trainer):
         pass
+    
+    def on_exception(self, exception, trainer):
+        pass

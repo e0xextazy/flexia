@@ -9,12 +9,13 @@ class TQDMLogger(Logger):
                  bar_format="{l_bar} {bar} {n_fmt}/{total_fmt} - elapsed: {elapsed} - remain: {remaining}{postfix}", 
                  description="",
                  color="#000", 
-                 decimals=4):
+                 decimals=4, notebook=False):
         
         self.bar_format = bar_format
         self.description = description
         self.color = color
         self.decimals = decimals
+        self.notebook = notebook
 
     def on_epoch_start(self, trainer):
         epoch = trainer.history["epoch"]
@@ -48,6 +49,10 @@ class TQDMLogger(Logger):
         trainer.validation_loader.close()
 
     def __loader_wrapper(self, loader):
+        if self.notebook:
+            from tqdm.notebook import tqdm
+
+    
         steps = len(loader)
         loader = tqdm(iterable=loader, 
                       total=steps,
