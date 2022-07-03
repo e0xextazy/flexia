@@ -4,12 +4,10 @@ from torch.cuda.amp import autocast
 from typing import Optional, Union, Any
 from torch.utils.data import DataLoader
 import numpy as np
-from tqdm import tqdm
 from datetime import timedelta
 import gc
 
 from ..timer import Timer
-from ..utils import tqdm_loader_wrapper, get_logger
 
 
 class Inferencer:
