@@ -28,3 +28,15 @@ class Logger:
 
     def on_training_end(self, trainer):
         pass
+
+    def on_prediction_step_start(self, inferencer):
+        pass
+
+    def on_prediction_step_end(self, inferencer):
+        pass
+
+    def on_prediction_start(self, inferencer):
+        pass
+
+    def on_prediction_end(self, inferencer):
+        pass

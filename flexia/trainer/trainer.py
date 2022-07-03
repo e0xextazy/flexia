@@ -9,7 +9,7 @@ import numpy as np
 
 
 from ..third_party.addict import Dict
-from .trainer_enums import SchedulingStrategy, ValidationStrategy
+from .trainer_enums import SchedulingStrategy, ValidationStrategy, TrainingStates
 from ..timer import Timer
 from ..averager import Averager
 from ..utils import get_lr, initialize_device
@@ -78,10 +78,27 @@ class Trainer:
         self.lr_key = "lr"
         self.history = Dict({
             "step": 0,
+            "epoch": 0,
         })
         
         self.train_loader, self.validation_loader = None, None
-    
+        self.state = TrainingStates.INIT
+
+
+    @property.setter
+    def state(self, value):
+        function_name = value.value
+        if self.loggers is not None:
+            for logger in self.loggers:
+                logger_method = getattr(logger, function_name)
+                logger_method(self)
+
+        if self.callbacks is not None:
+            for callback in self.callbacks:
+                callback_method = getattr(callback, function_name)
+                callback_method(self)
+
+        self.state = value
     
     def train(self, 
               train_loader:DataLoader, 
@@ -104,24 +121,30 @@ class Trainer:
             # validation model after N training steps!
             self.validation_steps = int(self.validation_steps * self.gradient_accumulation_steps)
 
-        self.loggers.on_training_start(self)
-        self.history.update({"epochs": self.epochs})
+        steps = len(self.train_loader)    
+        
+        self.history.update({
+            "epochs": self.epochs, 
+            "steps": int(self.epochs*steps),
+            "steps_epoch": steps,
+        })
 
         train_loss, train_metrics = Averager(), Averager()
         for epoch in range(1, self.epochs+1):
             self.history["epoch"] = epoch
 
             epoch_train_loss, epoch_train_metrics = Averager(), Averager()
-            steps = len(self.train_loader)    
             timer = Timer(self.time_format)
             
             self.model.zero_grad()
             for step, batch in enumerate(self.train_loader, 1):
                 self.history["step"] += 1
+                self.history["step_epoch"] = step
                 
                 batch_size = len(batch)
                 pseudo_batch = None if pseudo_loader is None else next(iter(pseudo_loader))
                 
+                self.state = TrainingStates.TRAINING_STEP_START
                 batch_loss, batch_metrics = self.training_step(batch=batch,
                                                                pseudo_batch=pseudo_batch,
                                                                overall_loss=epoch_train_loss.average, 
@@ -152,12 +175,12 @@ class Trainer:
                     "lr": lr,
                     "elapsed_epoch": elapsed,
                     "remain_epoch": remain,
-                    "train_metrics_batch": batch_metrics,
                     "train_metrics": train_metrics.average,
-                    "epoch_train_metrics": epoch_train_metrics.average,
+                    "train_metrics_batch": batch_metrics,
+                    "train_metrics_epoch": epoch_train_metrics.average,
                 })
 
-                self.loggers.on_training_step_end(self)
+                self.state = TrainingStates.TRAINING_STEP_END
 
                 if self.validation_loader is not None:
                     if (self.history["step"] % self.validation_steps) == 0:
@@ -182,7 +205,7 @@ class Trainer:
             epoch_elapsed_seconds = timer.elapsed_time.total_seconds()
             total_time += timedelta(seconds=epoch_elapsed_seconds)
 
-            self.loggers.on_training_end(self)
+            self.state = TrainingStates.TRAINING_END
 
         if self.validation_loader is not None:
             if return_validation_outputs:
@@ -264,12 +287,15 @@ class Trainer:
         outputs, targets = [], []
         steps = len(loader)
         
-        self.loggers.on_validation_start(self)
-
+        self.state = TrainingStates.VALIDATION_START
+        self.history["validation_steps"] = len(loader)
         for step, batch in enumerate(loader, 1):
             with torch.no_grad():
                 with autocast(enabled=self.amp):
                     batch_size = len(batch)
+
+                    self.state = TrainingStates.VALIDATION_STEP_START
+
                     batch_loss, batch_outputs = self.compute_loss(batch=batch, return_outputs=True)
                     batch_metrics = self.compute_metrics(predictions=batch_outputs, batch=batch)
 
@@ -280,21 +306,21 @@ class Trainer:
                         "validation_loss": loss.average,
                         "validation_loss_batch": batch_loss,
                         "validation_step": step,
-                        "validation_metrics_batch": batch_metrics,
                         "validation_metrics": metrics.average,
+                        "validation_metrics_batch": batch_metrics,
                     })
+
+                    self.state = TrainingStates.VALIDATION_STEP_END
 
                     if return_outputs:
                         outputs.extend(batch_outputs.to("cpu").numpy())
-
-                    self.loggers.on_validation_step_end(self)
-
-        self.loggers.on_validation_end(self)
 
         self.history.update({
             "train_loss_validation_steps": self.history["epoch_train_loss"],
             "train_metrics_validation_steps": self.history["epoch_train_metrics"],
         })
+
+        self.state = TrainingStates.VALIDATION_END
 
         if return_outputs:
             outputs = np.asarray(outputs)

@@ -1,5 +1,5 @@
-numpy==1.19.5
+wandb==0.12.14
 torch==1.11.0
 transformers==4.6.1
-wandb==0.12.14
+numpy==1.19.5
 tqdm==4.49.0

@@ -35,6 +35,19 @@ class Callback:
     def on_training_end(self, trainer):
         pass
 
+    def on_prediction_step_start(self, inferencer):
+        pass
+
+    def on_prediction_step_end(self, inferencer):
+        pass
+
+    def on_prediction_start(self, inferencer):
+        pass
+
+    def on_prediction_end(self, inferencer):
+        pass
+
+
     def get_monitor_value(self, trainer):
         monitor_value = trainer.history.get(self.monitor_value)
         if monitor_value is None:
