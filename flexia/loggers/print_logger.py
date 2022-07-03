@@ -10,12 +10,12 @@ class PrintLogger(Logger):
         self.decimals = decimals
 
     def on_training_step_end(self, trainer):
-        step = trainer.history["epoch_step"]
-        steps = trainer.history["epoch_steps"]
+        step = trainer.history["step_epoch"]
+        steps = trainer.history["steps_epoch"]
 
         if step % self.verbose == 0 or step == steps and self.verbose > 0:
-            elapsed = trainer.history["epoch_elapsed"]
-            remain = trainer.history["epoch_remain"]
+            elapsed = trainer.history["elapsed_epoch"]
+            remain = trainer.history["remain_epoch"]
             train_loss_epoch = trainer.history["train_loss_epoch"]
             train_metrics_epoch = trainer.history["train_metrics"]
             lr = trainer.history["lr"]
@@ -26,13 +26,13 @@ class PrintLogger(Logger):
 
     def on_validation_step_end(self, trainer):
         step = trainer.history["epoch_step"]
-        steps = trainer.history["validation_steps"]
+        steps = trainer.history["steps_validation"]
 
         if step % self.verbose == 0 or step == steps and self.verbose > 0:
             loss = trainer.history["validation_loss"]
             metrics = trainer.history["validation_metrics"]
-            elapsed = trainer.history["epoch_elapsed"]
-            remain = trainer.history["epoch_remain"]
+            elapsed = trainer.history["elapsed_epoch"]
+            remain = trainer.history["remain_epoch"]
             
             log_message = f"[Validation] {step}/{steps} - elapsed: {elapsed} - remain: {remain} - loss: {loss:.{self.decimals}}{self.format_metrics(metrics.average)}"
             print(log_message)

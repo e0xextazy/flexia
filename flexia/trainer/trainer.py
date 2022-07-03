@@ -82,7 +82,7 @@ class Trainer:
         })
         
         self.train_loader, self.validation_loader = None, None
-        
+
         self.state = TrainingStates.INIT
 
     @property
@@ -296,7 +296,7 @@ class Trainer:
         outputs, targets = [], []
         steps = len(loader)
         
-        self.history["validation_steps"] = len(loader)
+        self.history["steps_validation"] = len(loader)
         
         self.state = TrainingStates.VALIDATION_START
 
