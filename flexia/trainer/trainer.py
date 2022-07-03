@@ -82,6 +82,7 @@ class Trainer:
         })
         
         self.train_loader, self.validation_loader = None, None
+        
         self.state = TrainingStates.INIT
 
     @property
@@ -133,12 +134,17 @@ class Trainer:
         })
 
         train_loss, train_metrics = Averager(), Averager()
+
+        self.state = TrainingStates.TRAINING_START
+
         for epoch in range(1, self.epochs+1):
             self.history["epoch"] = epoch
 
             epoch_train_loss, epoch_train_metrics = Averager(), Averager()
             timer = Timer(self.time_format)
             
+            self.state = TrainingStates.EPOCH_START
+
             self.model.zero_grad()
             for step, batch in enumerate(self.train_loader, 1):
                 self.history["step"] += 1
@@ -148,6 +154,7 @@ class Trainer:
                 pseudo_batch = None if pseudo_loader is None else next(iter(pseudo_loader))
                 
                 self.state = TrainingStates.TRAINING_STEP_START
+
                 batch_loss, batch_metrics = self.training_step(batch=batch, pseudo_batch=pseudo_batch)
 
                 lr = get_lr(self.optimizer, only_last=True, key=self.lr_key)
@@ -201,6 +208,8 @@ class Trainer:
 
             if self.scheduling_strategy == SchedulingStrategy.EPOCH:
                 self.scheduling_step(loop="training")
+
+            self.state = TrainingStates.EPOCH_END
 
             epoch_elapsed_seconds = timer.elapsed_time.total_seconds()
             total_time += timedelta(seconds=epoch_elapsed_seconds)
@@ -287,8 +296,10 @@ class Trainer:
         outputs, targets = [], []
         steps = len(loader)
         
-        self.state = TrainingStates.VALIDATION_START
         self.history["validation_steps"] = len(loader)
+        
+        self.state = TrainingStates.VALIDATION_START
+
         for step, batch in enumerate(loader, 1):
             with torch.no_grad():
                 with autocast(enabled=self.amp):
