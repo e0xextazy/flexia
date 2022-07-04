@@ -44,20 +44,15 @@ class FGM(Base):
             self.is_tpu = is_torch_xla_available()
             self.is_cuda = torch.cuda.is_available()
 
-            if not isinstance(self.model, nn.Module):
-                raise TypeError(f"`model` must be subinstance of `torch.nn.Module`, but given `{type(self.model)}`")
+            assertIsInstance(self.model, nn.Module), f"`model` must be subinstance of `torch.nn.Module`, but given `{type(self.model)}`"
 
-            if self.eps < 0:
-                raise ValueError(f"`eps` must be greater than 0, but given `{self.eps}`")
+            assert self.eps >= 0, f"`eps` must be greater than 0, but given `{self.eps}`"
 
-            if self.start_epoch < 0:
-                raise ValueError(f"`start_epoch` must be greater than 0, but given `{self.start_epoch}`")
+            assert self.start_epoch >= 0, f"`start_epoch` must be greater than 0, but given `{self.start_epoch}`"
 
-            if self.start_step < 0:
-                raise ValueError(f"`start_epoch` must be greater than 0, but given `{self.start_step}`")
+            assert self.start_step >= 0, f"`start_epoch` must be greater than 0, but given `{self.start_step}`"
 
-            if self.steps < 0:
-                raise ValueError(f"`steps` must be greater than 0, but given `{self.steps}`")
+            assert self.steps >= 0, f"`steps` must be greater than 0, but given `{self.steps}`"
 
             if self.device is None:
                 if self.is_cuda:
@@ -66,7 +61,6 @@ class FGM(Base):
                     self.device = xm.xla_device()
                 else:
                     self.device = "cpu"
-
 
             self.reset()
 
